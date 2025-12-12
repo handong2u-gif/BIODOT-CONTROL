@@ -13,7 +13,7 @@ export function AppHeader() {
   return (
     <header className="h-16 border-b border-border bg-card px-6 flex items-center justify-between sticky top-0 z-10">
       <div className="flex items-center gap-4">
-        <h2 className="text-lg font-semibold text-foreground">환영합니다</h2>
+        <h2 className="text-lg font-semibold text-foreground">바이오닷 가족 여러분 안녕하세요</h2>
         <span className="text-sm text-muted-foreground">오늘도 좋은 하루 되세요</span>
       </div>
 
@@ -21,7 +21,7 @@ export function AppHeader() {
         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
           <HelpCircle className="w-5 h-5" />
         </Button>
-        
+
         <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
           <Bell className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full animate-pulse-soft" />

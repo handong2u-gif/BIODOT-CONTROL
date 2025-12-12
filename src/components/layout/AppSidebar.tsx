@@ -45,7 +45,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="animate-fade-in">
-              <h1 className="text-sidebar-foreground font-semibold text-lg tracking-tight">BIODOT</h1>
+              <h1 className="text-sidebar-foreground font-semibold text-lg tracking-tight">바이오닷</h1>
               <p className="text-sidebar-muted text-xs">내부 운영 시스템</p>
             </div>
           )}

@@ -9,7 +9,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">대시보드</h1>
-        <p className="text-muted-foreground mt-1">BIODOT 운영 현황을 한눈에 확인하세요</p>
+        <p className="text-muted-foreground mt-1">바이오닷 운영 현황을 한눈에 확인하세요</p>
       </div>
 
       {/* Stats Grid */}
