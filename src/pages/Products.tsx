@@ -128,7 +128,8 @@ export default function Products() {
 
   const handleImport = () => {
     if (!importUrl) {
-      toast.error("URL을 입력해주세요");
+      setIsImportOpen(true);
+      toast.info("구글 시트 URL을 입력해주세요");
       return;
     }
 
