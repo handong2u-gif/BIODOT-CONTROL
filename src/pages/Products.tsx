@@ -132,8 +132,9 @@ export default function Products() {
             console.log("CSV Parsed Results:", results);
             toast.error(`데이터가 없습니다. CSV 헤더를 확인해주세요. (발견된 헤더: ${results.meta.fields?.join(", ")})`);
           } else {
-            setProducts([...products, ...importedProducts]);
-            toast.success(`${importedProducts.length}개의 제품을 성공적으로 가져왔습니다!`);
+            // Replace all products with imported data (no duplicates)
+            setProducts(importedProducts);
+            toast.success(`${importedProducts.length}개의 제품을 가져왔습니다!`);
             setIsImportOpen(false);
             // Keep the URL for future imports - don't clear it
           }
