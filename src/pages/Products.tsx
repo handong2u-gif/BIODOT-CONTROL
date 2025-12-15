@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Search, Filter, Grid, List, ChevronRight, Plus, Download, FileSpreadsheet } from "lucide-react";
+import { Search, Filter, Grid, List, ChevronRight, Plus, Download, FileSpreadsheet, X, Trash2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Papa from "papaparse";
@@ -82,11 +82,48 @@ export default function Products() {
     }
   }, [importUrl]);
 
+  // Admin Mode State
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+
   // Template Data for Copy
   const copyTemplate = () => {
     const header = "제품명,카테고리,가격,재고\n프로바이오틱스,유산균,15000,100\n비타민C,비타민,10000,50";
     navigator.clipboard.writeText(header);
     toast.success("템플릿이 클립보드에 복사되었습니다. 구글 시트에 붙여넣으세요.");
+  };
+
+  // PIN Verification
+  const handlePinSubmit = () => {
+    if (pinInput === "1234") {
+      setIsAdminMode(true);
+      setIsPinDialogOpen(false);
+      setPinInput("");
+      toast.success("관리자 모드가 활성화되었습니다.");
+    } else {
+      toast.error("PIN 번호가 올바르지 않습니다.");
+      setPinInput("");
+    }
+  };
+
+  // Delete Handlers
+  const handleDeleteProduct = (id: number) => {
+    setProducts(products.filter(p => p.id !== id));
+    toast.success("제품이 삭제되었습니다.");
+  };
+
+  const handleDeleteAll = () => {
+    if (products.length === 0) {
+      toast.error("삭제할 제품이 없습니다.");
+      return;
+    }
+
+    const confirmed = window.confirm(`정말 모든 제품(${products.length}개)을 삭제하시겠습니까?`);
+    if (confirmed) {
+      setProducts([]);
+      toast.success("모든 제품이 삭제되었습니다.");
+    }
   };
 
   const handleImport = () => {
@@ -185,11 +222,69 @@ export default function Products() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">제품 정보</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-foreground">제품 정보</h1>
+            {isAdminMode && (
+              <Badge variant="destructive" className="gap-1">
+                <Lock className="w-3 h-3" />
+                관리자 모드
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground mt-1">제품 정보를 조회하고 관리합니다</p>
         </div>
 
         <div className="flex gap-2">
+          {/* Admin Mode Toggle */}
+          <Dialog open={isPinDialogOpen} onOpenChange={setIsPinDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant={isAdminMode ? "destructive" : "outline"} className="gap-2">
+                <Lock className="w-4 h-4" />
+                {isAdminMode ? "관리 모드 ON" : "관리"}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle>관리자 인증</DialogTitle>
+                <DialogDescription>
+                  PIN 번호를 입력하여 관리자 모드를 활성화하세요.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>PIN 번호 (4자리)</Label>
+                  <Input
+                    type="password"
+                    placeholder="••••"
+                    maxLength={4}
+                    value={pinInput}
+                    onChange={(e) => setPinInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handlePinSubmit();
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => {
+                  setIsPinDialogOpen(false);
+                  setPinInput("");
+                }}>취소</Button>
+                <Button onClick={handlePinSubmit}>확인</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete All Button (Admin Only) */}
+          {isAdminMode && products.length > 0 && (
+            <Button variant="destructive" className="gap-2" onClick={handleDeleteAll}>
+              <Trash2 className="w-4 h-4" />
+              전체 삭제
+            </Button>
+          )}
+
           {/* Import Dialog */}
           <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
             <DialogTrigger asChild>
@@ -331,9 +426,23 @@ export default function Products() {
             {filteredProducts.map((product, index) => (
               <div
                 key={product.id}
-                className="bg-card rounded-xl border p-5 hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer animate-fade-in group"
+                className="bg-card rounded-xl border p-5 hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer animate-fade-in group relative"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
+                {/* Delete Button (Admin Only) */}
+                {isAdminMode && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteProduct(product.id);
+                    }}
+                    className="absolute top-3 right-3 w-6 h-6 rounded-full bg-destructive/10 hover:bg-destructive text-destructive hover:text-destructive-foreground flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                    title="삭제"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+
                 <div className="flex items-start justify-between mb-4">
                   <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-2xl">
                     {product.image}
@@ -394,6 +503,11 @@ export default function Products() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     상태
                   </th>
+                  {isAdminMode && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      관리
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -428,6 +542,21 @@ export default function Products() {
                         {product.status === "active" ? "판매중" : "품절"}
                       </Badge>
                     </td>
+                    {isAdminMode && (
+                      <td className="px-4 py-4">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProduct(product.id);
+                          }}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
