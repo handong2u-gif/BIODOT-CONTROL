@@ -69,8 +69,18 @@ export default function Products() {
 
   // Import State
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [importUrl, setImportUrl] = useState("https://docs.google.com/spreadsheets/d/e/2PACX-1vQRyIlVK19iGaa1tTiIwU10m9Th6aCR6N2qvzDNBVgJJY9oYFp1MblEZfcDNVfx1ScAZdsKQP1dVRcR/pub?output=csv");
+  const [importUrl, setImportUrl] = useState(() => {
+    const saved = localStorage.getItem("biodot_sheet_url");
+    return saved || "";
+  });
   const [isImporting, setIsImporting] = useState(false);
+
+  // Save URL to localStorage whenever it changes
+  useEffect(() => {
+    if (importUrl) {
+      localStorage.setItem("biodot_sheet_url", importUrl);
+    }
+  }, [importUrl]);
 
   // Template Data for Copy
   const copyTemplate = () => {
@@ -125,7 +135,7 @@ export default function Products() {
             setProducts([...products, ...importedProducts]);
             toast.success(`${importedProducts.length}개의 제품을 성공적으로 가져왔습니다!`);
             setIsImportOpen(false);
-            setImportUrl("");
+            // Keep the URL for future imports - don't clear it
           }
         } catch (e) {
           console.error(e);
