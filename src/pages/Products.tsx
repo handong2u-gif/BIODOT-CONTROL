@@ -236,46 +236,60 @@ export default function Products() {
 
         <div className="flex gap-2">
           {/* Admin Mode Toggle */}
-          <Dialog open={isPinDialogOpen} onOpenChange={setIsPinDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant={isAdminMode ? "destructive" : "outline"} className="gap-2">
-                <Lock className="w-4 h-4" />
-                {isAdminMode ? "관리 모드 ON" : "관리"}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[400px]">
-              <DialogHeader>
-                <DialogTitle>관리자 인증</DialogTitle>
-                <DialogDescription>
-                  PIN 번호를 입력하여 관리자 모드를 활성화하세요.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>PIN 번호 (4자리)</Label>
-                  <Input
-                    type="password"
-                    placeholder="••••"
-                    maxLength={4}
-                    value={pinInput}
-                    onChange={(e) => setPinInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handlePinSubmit();
-                      }
-                    }}
-                  />
+          {isAdminMode ? (
+            <Button
+              variant="destructive"
+              className="gap-2"
+              onClick={() => {
+                setIsAdminMode(false);
+                toast.info("관리자 모드가 비활성화되었습니다.");
+              }}
+            >
+              <Lock className="w-4 h-4" />
+              관리 모드 OFF
+            </Button>
+          ) : (
+            <Dialog open={isPinDialogOpen} onOpenChange={setIsPinDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Lock className="w-4 h-4" />
+                  관리
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[400px]">
+                <DialogHeader>
+                  <DialogTitle>관리자 인증</DialogTitle>
+                  <DialogDescription>
+                    PIN 번호를 입력하여 관리자 모드를 활성화하세요.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>PIN 번호 (4자리)</Label>
+                    <Input
+                      type="password"
+                      placeholder="••••"
+                      maxLength={4}
+                      value={pinInput}
+                      onChange={(e) => setPinInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handlePinSubmit();
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => {
-                  setIsPinDialogOpen(false);
-                  setPinInput("");
-                }}>취소</Button>
-                <Button onClick={handlePinSubmit}>확인</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => {
+                    setIsPinDialogOpen(false);
+                    setPinInput("");
+                  }}>취소</Button>
+                  <Button onClick={handlePinSubmit}>확인</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
 
           {/* Delete All Button (Admin Only) */}
           {isAdminMode && products.length > 0 && (
