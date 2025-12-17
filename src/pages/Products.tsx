@@ -210,7 +210,9 @@ const Products = () => {
                       ) : null}
                       <th className="px-4 py-3 text-right text-emerald-600">
                         도매가 A
-                        <span className="block text-[10px] font-normal opacity-80">위탁가(배송비별도)</span>
+                        {activeTab !== 'biodot' && (
+                          <span className="block text-[10px] font-normal opacity-80">위탁가(배송비별도)</span>
+                        )}
                       </th>
                       {activeTab === 'biodot-works' && (
                         <th className="px-4 py-3 text-right">
@@ -220,8 +222,10 @@ const Products = () => {
                       )}
 
                       <th className="px-4 py-3 text-right">
-                        소비자가
-                        <span className="block text-[10px] font-normal text-slate-400">Retail Price</span>
+                        {activeTab === 'biodot' ? "한의원 공급가" : "소비자가"}
+                        <span className="block text-[10px] font-normal text-slate-400">
+                          {activeTab === 'biodot' ? "Clinic Price" : "Retail Price"}
+                        </span>
                       </th>
                       {showCost && <th className="px-4 py-3 text-right text-red-500 bg-red-50/50">원가</th>}
                       <th className="px-4 py-3 text-center">유효기간</th>
