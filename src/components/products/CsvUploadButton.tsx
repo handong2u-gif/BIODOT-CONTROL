@@ -80,7 +80,7 @@ export function CsvUploadButton({ tableName, onUploadComplete }: CsvUploadButton
                         // Generate temporary ID if missing for raw_materials (optional, but good for tracking)
                         if (tableName === 'raw_materials' && !cleanRow.id) {
                             // If DB id is nullable/auto, we might not need this, but for uniqueness:
-                            // cleanRow.id = `RM-${Math.random().toString(36).substr(2, 9)}`;
+                            cleanRow.id = `RM-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
                         }
 
                         return cleanRow;
