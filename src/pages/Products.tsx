@@ -29,9 +29,10 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 
 // Match DB Schema
 interface ProductData {
-  id: number;
+  id: number | string; // Adjusted to allow string IDs (for raw_materials CSVs)
   product_name: string;
   spec: string | null;
+  origin_country: string | null; // Added
   wholesale_a: number;
   wholesale_b: number;
   wholesale_c: number;
@@ -42,8 +43,14 @@ interface ProductData {
   thumbnail_url: string | null;
   cert_doc_url: string | null;
   report_doc_url: string | null;
+  intro_doc_url: string | null; // Added
   qty_carton: string | null;
-  active_clients: string | null; // often used for memo equivalent
+  qty_container: string | null; // Added
+  active_clients: string | null;
+  inactive_clients: string | null; // Added
+  unpaid_balance: string | null; // Added
+  last_check_date: string | null; // Added (Date string)
+  competitor_comp: string | null; // Added
   memo: string | null;
   created_at: string;
 }
@@ -76,24 +83,8 @@ const Products = () => {
         // Gracefully handle if table doesn't exist (e.g. raw_materials empty/deleted)
         console.warn(`Error fetching ${tableName}:`, error);
       } else {
-        // Normalize data for 'raw_materials' to match 'ProductData' interface
-        const normalizedData = (data || []).map((item: any) => {
-          if (tableName === 'raw_materials') {
-            return {
-              ...item,
-              product_name: item.name, // Map 'name' to 'product_name'
-              wholesale_a: item.supply_price, // Map 'supply_price' to 'wholesale_a'
-              // Default other fields if missing
-              wholesale_b: 0,
-              retail_price: 0,
-              cost_blind: item.supply_price,
-              inbound_date: item.price_effective_date
-            };
-          }
-          return item;
-        });
-
-        setProducts(normalizedData);
+        // Data normalization is no longer needed as both tables now share the same schema structure.
+        setProducts(data || []);
       }
     } catch (error: any) {
       console.error('Error fetching products:', error);

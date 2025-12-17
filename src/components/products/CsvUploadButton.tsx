@@ -35,19 +35,19 @@ export function CsvUploadButton({ tableName, onUploadComplete }: CsvUploadButton
                     console.log(`Uploading ${rows.length} rows to ${tableName}`);
 
                     // Define mappings (Korean Header -> DB Column)
+                    // Define mappings (Korean Header -> DB Column)
                     const rawMaterialMapping: { [key: string]: string } = {
-                        '제품명': 'name',
-                        '품명': 'name',
+                        '제품명': 'product_name',
+                        '품명': 'product_name',
                         '원산지': 'origin_country',
                         '국가': 'origin_country',
-                        '공급가': 'supply_price',
-                        '단가': 'supply_price',
-                        '가격': 'supply_price',
-                        '가격적용일': 'price_effective_date',
-                        '적용일': 'price_effective_date',
-                        '날짜': 'price_effective_date',
-                        '비고': 'memo',
-                        '메모': 'memo'
+                        '공급가': 'wholesale_a',
+                        '단가': 'wholesale_a',
+                        '가격': 'wholesale_a',
+                        // Map other potential Korean headers if the user adds them
+                        '규격': 'spec',
+                        '메모': 'memo',
+                        '비고': 'memo'
                     };
 
                     // Transform data
