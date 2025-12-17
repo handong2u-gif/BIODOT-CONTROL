@@ -1,0 +1,151 @@
+{
+    "db_name": "BIODOT_MVP_RAW_ONLY",
+    "version": "0.5",
+    "scope": {
+        "included": [
+            "raw_materials_only"
+        ],
+        "excluded_for_now": [
+            "biodot_finished_goods",
+            "biodotworks_branded_finished_goods"
+        ]
+    },
+    "sheets": [
+        {
+            "sheet_name": "COUNTRY_MASTER",
+            "primary_key": "국가명",
+            "columns": [
+                {
+                    "key": "국가명",
+                    "type": "string",
+                    "required": true,
+                    "description": "원산지 표준 국가명(드롭다운 소스). RAW_MATERIALS의 '원산지(국가)'는 반드시 이 목록 중 하나를 사용한다.",
+                    "examples": [
+                        "뉴질랜드",
+                        "러시아"
+                    ],
+                    "validation_hint": {
+                        "min_length": 2,
+                        "max_length": 50
+                    }
+                },
+                {
+                    "key": "ISO2",
+                    "type": "string",
+                    "required": false,
+                    "description": "참고용 ISO 3166-1 alpha-2 코드(선택).",
+                    "examples": [
+                        "NZ",
+                        "RU"
+                    ],
+                    "validation_hint": {
+                        "regex": "^[A-Z]{2}$"
+                    }
+                }
+            ],
+            "records": [],
+            "operating_rules": [
+                "COUNTRY_MASTER는 원산지 표준값 목록(드롭다운 소스)으로 사용한다.",
+                "국가명 표기는 한 가지 형태로만 유지한다(예: NZ 금지, 뉴질랜드로 통일)."
+            ]
+        },
+        {
+            "sheet_name": "RAW_MATERIALS",
+            "primary_key": "원료ID",
+            "constraints": {
+                "unique_keys": [
+                    [
+                        "제품명",
+                        "원산지(국가)",
+                        "가격적용일"
+                    ]
+                ]
+            },
+            "columns": [
+                {
+                    "key": "원료ID",
+                    "type": "string",
+                    "required": true,
+                    "description": "원료 레코드의 고유 식별자(Primary Key). 예: BD-RM-000001",
+                    "examples": [
+                        "BD-RM-000001",
+                        "BD-RM-000145"
+                    ],
+                    "validation_hint": {
+                        "regex": "^BD-RM-[0-9]{6}$",
+                        "min_length": 12,
+                        "max_length": 12
+                    }
+                },
+                {
+                    "key": "제품명",
+                    "type": "string",
+                    "required": true,
+                    "description": "원료 제품의 식별명. 포장단위(예: 600g, 1kg 등)는 제품마다 다르므로 제품명 문자열에 사용자가 직접 포함해 입력한다.",
+                    "examples": [
+                        "뉴질랜드 녹용 분골특 600g",
+                        "러시아 녹용 상대R 1kg"
+                    ],
+                    "validation_hint": {
+                        "min_length": 2,
+                        "max_length": 200
+                    }
+                },
+                {
+                    "key": "원산지(국가)",
+                    "type": "string",
+                    "required": true,
+                    "description": "원산지는 국가만 입력한다. 반드시 COUNTRY_MASTER의 국가명 중 하나를 사용한다(드롭다운).",
+                    "examples": [
+                        "뉴질랜드",
+                        "러시아"
+                    ],
+                    "validation_hint": {
+                        "allowed_values_ref": {
+                            "sheet": "COUNTRY_MASTER",
+                            "column": "국가명"
+                        },
+                        "allowed_format": "country_only"
+                    }
+                },
+                {
+                    "key": "가격적용일",
+                    "type": "date",
+                    "required": true,
+                    "description": "해당 공급가가 적용되는 기준일(YYYY-MM-DD). 가격 변경 시 같은 제품/국가 조합으로 새 레코드를 추가한다.",
+                    "examples": [
+                        "2025-12-15"
+                    ],
+                    "validation_hint": {
+                        "format": "YYYY-MM-DD"
+                    }
+                },
+                {
+                    "key": "공급가(KRW·VAT포함)",
+                    "type": "number",
+                    "required": true,
+                    "description": "공급가는 KRW 고정이며 부가세 포함 금액으로 입력한다. 단위 기준은 '제품명에 포함된 포장단위 1개'를 1 기준으로 본다.",
+                    "examples": [
+                        1100000,
+                        450000
+                    ],
+                    "validation_hint": {
+                        "currency_fixed": "KRW",
+                        "vat_included": true,
+                        "min_value": 1
+                    }
+                }
+            ],
+            "records": [],
+            "operating_rules": [
+                "통화는 KRW로 고정한다.",
+                "공급가는 VAT 포함으로 고정한다.",
+                "원산지는 국가만 입력하며 COUNTRY_MASTER 드롭다운을 사용한다.",
+                "포장단위는 제품명에 직접 포함해 입력한다.",
+                "원료ID는 중복 불가이며 형식은 BD-RM-000001(6자리 증가)로 유지한다.",
+                "같은 제품명/원산지(국가)/가격적용일 조합은 중복 입력하지 않는다(Unique).",
+                "가격 변경 시: 동일 제품명/원산지(국가)로 가격적용일을 달리해 새 레코드를 추가한다."
+            ]
+        }
+    ]
+}

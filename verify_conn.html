@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Connection Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        .status { padding: 10px; border-radius: 5px; margin-top: 20px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Supabase 연결 테스트</h1>
+    <div id="result">연결 시도 중...</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase configuration
+        const supabaseUrl = 'https://qfvmqotkhjkewdwzibyb.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmdm1xb3RraGprZXdkd3ppYnliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDU5NjAsImV4cCI6MjA4MTA4MTk2MH0.7NrJDA3l4PnGNLcv4O55gPrmg-HWL59JPKjOwiwrR3c';
+
+        async function checkConnection() {
+            const resultDiv = document.getElementById('result');
+            try {
+                const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+                
+                // Try to fetch something simple, e.g., auth session (even if null, it means connection works)
+                const { data, error } = await supabase.auth.getSession();
+
+                if (error) throw error;
+
+                resultDiv.innerHTML = `
+                    <div class="status success">
+                        <h3>✅ 연결 성공!</h3>
+                        <p>Supabase 프로젝트(ID: <code>qfvmqotkhjkewdwzibyb</code>)와 정상적으로 통신했습니다.</p>
+                        <p>현재 세션 상태: ${data.session ? '로그인 됨' : '비로그인 상태'}</p>
+                    </div>
+                `;
+            } catch (err) {
+                resultDiv.innerHTML = `
+                    <div class="status error">
+                        <h3>❌ 연결 실패</h3>
+                        <p>오류 내용: ${err.message}</p>
+                        <p>키나 URL 설정을 확인해주세요.</p>
+                    </div>
+                `;
+                console.error(err);
+            }
+        }
+
+        checkConnection();
+    </script>
+</body>
+</html>
