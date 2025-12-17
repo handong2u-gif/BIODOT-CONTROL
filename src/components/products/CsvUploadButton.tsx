@@ -34,24 +34,55 @@ export function CsvUploadButton({ tableName, onUploadComplete }: CsvUploadButton
 
                     console.log(`Uploading ${rows.length} rows to ${tableName}`);
 
-                    // Transform data if necessary based on tableName
+                    // Define mappings (Korean Header -> DB Column)
+                    const rawMaterialMapping: { [key: string]: string } = {
+                        '제품명': 'name',
+                        '품명': 'name',
+                        '원산지': 'origin_country',
+                        '국가': 'origin_country',
+                        '공급가': 'supply_price',
+                        '단가': 'supply_price',
+                        '가격': 'supply_price',
+                        '가격적용일': 'price_effective_date',
+                        '적용일': 'price_effective_date',
+                        '날짜': 'price_effective_date',
+                        '비고': 'memo',
+                        '메모': 'memo'
+                    };
+
+                    // Transform data
                     const formattedRows = rows.map((row: any) => {
-                        // Remove empty keys
                         const cleanRow: any = {};
+
                         Object.keys(row).forEach(key => {
-                            if (key.trim() !== '') {
-                                // Basic normalization: handle "null" string or empty string as null
-                                let value = row[key];
-                                if (typeof value === 'string') {
-                                    value = value.trim();
-                                    if (value === '' || value.toLowerCase() === 'null') value = null;
-                                }
-                                cleanRow[key] = value;
+                            const trimmedKey = key.trim();
+                            let targetKey = trimmedKey;
+
+                            // Apply mapping for raw_materials
+                            if (tableName === 'raw_materials' && rawMaterialMapping[trimmedKey]) {
+                                targetKey = rawMaterialMapping[trimmedKey];
                             }
+
+                            // Handle values
+                            let value = row[key];
+                            if (typeof value === 'string') {
+                                value = value.trim();
+                                // Remove commas from numbers (e.g. "1,000" -> 1000) for price fields
+                                if (['supply_price', 'wholesale_a', 'wholesale_b', 'retail_price', 'cost_blind'].includes(targetKey)) {
+                                    value = value.replace(/,/g, '');
+                                }
+                                if (value === '' || value.toLowerCase() === 'null') value = null;
+                            }
+
+                            cleanRow[targetKey] = value;
                         });
 
-                        // Specific transformations for 'raw_materials' if needed
-                        // e.g. generate ID if missing? For now assume CSV matches schema.
+                        // Generate temporary ID if missing for raw_materials (optional, but good for tracking)
+                        if (tableName === 'raw_materials' && !cleanRow.id) {
+                            // If DB id is nullable/auto, we might not need this, but for uniqueness:
+                            // cleanRow.id = `RM-${Math.random().toString(36).substr(2, 9)}`;
+                        }
+
                         return cleanRow;
                     });
 
