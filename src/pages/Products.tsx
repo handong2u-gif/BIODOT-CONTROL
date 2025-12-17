@@ -205,21 +205,29 @@ const Products = () => {
                   <thead className="bg-slate-50 border-b">
                     <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                       <th className="px-4 py-3 min-w-[200px]">제품명 / 규격</th>
+                      {activeTab === 'biodot' ? (
+                        <th className="px-4 py-3 text-center">원산지</th>
+                      ) : null}
                       <th className="px-4 py-3 text-right text-emerald-600">
                         도매가 A
                         <span className="block text-[10px] font-normal opacity-80">위탁가(배송비별도)</span>
                       </th>
-                      <th className="px-4 py-3 text-right">
-                        도매가 B
-                        <span className="block text-[10px] font-normal text-slate-400">월 40개 이상</span>
-                      </th>
+                      {activeTab === 'biodot-works' && (
+                        <th className="px-4 py-3 text-right">
+                          도매가 B
+                          <span className="block text-[10px] font-normal text-slate-400">월 40개 이상</span>
+                        </th>
+                      )}
+
                       <th className="px-4 py-3 text-right">
                         소비자가
                         <span className="block text-[10px] font-normal text-slate-400">Retail Price</span>
                       </th>
                       {showCost && <th className="px-4 py-3 text-right text-red-500 bg-red-50/50">원가</th>}
                       <th className="px-4 py-3 text-center">유효기간</th>
+                      {activeTab === 'biodot' && <th className="px-4 py-3 text-center">입고일</th>}
                       <th className="px-4 py-3 text-center">서류</th>
+                      {activeTab === 'biodot' && <th className="px-4 py-3 text-center">컨테이너/박스</th>}
                       <th className="px-4 py-3">메모</th>
                       <th className="px-4 py-3 w-[50px]"></th>
                     </tr>
@@ -231,12 +239,21 @@ const Products = () => {
                           <div className="font-medium text-slate-900">{item.product_name}</div>
                           {item.spec && <div className="text-xs text-slate-500 mt-0.5">{item.spec}</div>}
                         </td>
+
+                        {activeTab === 'biodot' && (
+                          <td className="px-4 py-3 text-center text-slate-600 text-sm">
+                            {item.origin_country || '-'}
+                          </td>
+                        )}
+
                         <td className="px-4 py-3 text-right font-medium text-emerald-700">
                           {formatMoney(item.wholesale_a)}
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-600">
-                          {formatMoney(item.wholesale_b)}
-                        </td>
+                        {activeTab === 'biodot-works' && (
+                          <td className="px-4 py-3 text-right text-slate-600">
+                            {formatMoney(item.wholesale_b)}
+                          </td>
+                        )}
                         <td className="px-4 py-3 text-right text-slate-600">
                           {formatMoney(item.retail_price)}
                         </td>
@@ -248,12 +265,23 @@ const Products = () => {
                         <td className="px-4 py-3 text-center text-xs text-slate-500">
                           {item.expiry_date || '-'}
                         </td>
+                        {activeTab === 'biodot' && (
+                          <td className="px-4 py-3 text-center text-xs text-slate-500">
+                            {item.inbound_date || '-'}
+                          </td>
+                        )}
                         <td className="px-4 py-3 text-center">
                           <div className="flex justify-center gap-2 text-slate-400">
                             {item.cert_doc_url && <div title="성적서"><FileText className="w-4 h-4 text-blue-400 hover:text-blue-600 cursor-pointer" /></div>}
                             {item.report_doc_url && <div title="제조보고서"><FileText className="w-4 h-4 text-orange-400 hover:text-orange-600 cursor-pointer" /></div>}
+                            {item.intro_doc_url && <div title="제품소개서"><FileText className="w-4 h-4 text-green-400 hover:text-green-600 cursor-pointer" /></div>}
                           </div>
                         </td>
+                        {activeTab === 'biodot' && (
+                          <td className="px-4 py-3 text-center text-xs text-slate-500">
+                            {item.qty_container || '-'}/{item.qty_carton || '-'}
+                          </td>
+                        )}
                         <td className="px-4 py-3 max-w-[200px]">
                           <div className="truncate text-xs text-slate-600" title={item.memo || ''}>
                             {item.memo || item.active_clients || '-'}
