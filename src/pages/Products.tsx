@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { CsvUploadButton } from "@/components/products/CsvUploadButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -75,7 +76,24 @@ const Products = () => {
         // Gracefully handle if table doesn't exist (e.g. raw_materials empty/deleted)
         console.warn(`Error fetching ${tableName}:`, error);
       } else {
-        setProducts(data || []);
+        // Normalize data for 'raw_materials' to match 'ProductData' interface
+        const normalizedData = (data || []).map((item: any) => {
+          if (tableName === 'raw_materials') {
+            return {
+              ...item,
+              product_name: item.name, // Map 'name' to 'product_name'
+              wholesale_a: item.supply_price, // Map 'supply_price' to 'wholesale_a'
+              // Default other fields if missing
+              wholesale_b: 0,
+              retail_price: 0,
+              cost_blind: item.supply_price,
+              inbound_date: item.price_effective_date
+            };
+          }
+          return item;
+        });
+
+        setProducts(normalizedData);
       }
     } catch (error: any) {
       console.error('Error fetching products:', error);
@@ -107,6 +125,10 @@ const Products = () => {
           <Button onClick={() => fetchProducts(activeTab)} variant="outline" size="sm">
             새로고침
           </Button>
+          <CsvUploadButton
+            tableName={activeTab === 'biodot' ? 'raw_materials' : 'finished_goods'}
+            onUploadComplete={() => fetchProducts(activeTab)}
+          />
           <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
             <Plus className="w-4 h-4 mr-2" /> 제품 추가
           </Button>

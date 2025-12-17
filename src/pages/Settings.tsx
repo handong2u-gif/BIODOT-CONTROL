@@ -45,17 +45,17 @@ const notificationSettings = [
 ];
 
 export default function Settings() {
-  const handleDeleteAllData = async () => {
-    if (window.confirm('정말로 모든 제품 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+  const handleDeleteData = async (table: 'finished_goods' | 'raw_materials', label: string) => {
+    if (window.confirm(`정말로 모든 ${label} 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) {
       try {
         const { error } = await (supabase as any)
-          .from('finished_goods')
+          .from(table)
           .delete()
-          .gt('id', -1); // Delete all rows
+          .not('id', 'is', null); // Delete all rows (id is not null)
 
         if (error) throw error;
 
-        toast.success("모든 데이터가 삭제되었습니다.");
+        toast.success(`모든 ${label} 데이터가 삭제되었습니다.`);
       } catch (error) {
         console.error('Error deleting data:', error);
         toast.error("데이터 삭제 중 오류가 발생했습니다.");
@@ -136,9 +136,14 @@ export default function Settings() {
           <Button variant="outline" size="sm">
             데이터 수동 동기화
           </Button>
-          <Button variant="destructive" size="sm" onClick={handleDeleteAllData}>
-            데이터 전체 삭제
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button variant="destructive" size="sm" onClick={() => handleDeleteData('finished_goods', '완제품(바이오닷웍스)')}>
+              완제품 전체 삭제
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => handleDeleteData('raw_materials', '원료(바이오닷)')}>
+              원료 전체 삭제
+            </Button>
+          </div>
         </div>
       </div>
     </div>
