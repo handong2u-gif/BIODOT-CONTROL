@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { AppSidebar } from "../components/layout/app-sidebar";
+import { AppSidebar } from "../components/layout/AppSidebar";
 import {
   Building2,
   Package,
@@ -89,8 +89,8 @@ const Products = () => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('finished_goods')
+      const { data, error } = await (supabase
+        .from('finished_goods') as any)
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -244,8 +244,8 @@ const Products = () => {
                             </td>
                             <td className="px-4 py-3 text-center">
                               <div className="flex justify-center gap-2 text-slate-400">
-                                {item.cert_doc_url && <FileText className="w-4 h-4 text-blue-400 hover:text-blue-600 cursor-pointer" title="성적서" />}
-                                {item.report_doc_url && <FileText className="w-4 h-4 text-orange-400 hover:text-orange-600 cursor-pointer" title="제조보고서" />}
+                                {item.cert_doc_url && <div title="성적서"><FileText className="w-4 h-4 text-blue-400 hover:text-blue-600 cursor-pointer" /></div>}
+                                {item.report_doc_url && <div title="제조보고서"><FileText className="w-4 h-4 text-orange-400 hover:text-orange-600 cursor-pointer" /></div>}
                               </div>
                             </td>
                             <td className="px-4 py-3 max-w-[200px]">
