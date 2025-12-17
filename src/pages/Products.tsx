@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { AppSidebar } from "@/components/layout/app-sidebar";
+import { AppSidebar } from "../components/layout/app-sidebar";
 import {
   Building2,
   Package,
