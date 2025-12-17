@@ -66,8 +66,8 @@ const Products = () => {
 
       const tableName = currentTab === 'biodot' ? 'raw_materials' : 'finished_goods';
 
-      const { data, error } = await (supabase
-        .from(tableName) as any)
+      const { data, error } = await (supabase as any)
+        .from(tableName)
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -192,9 +192,18 @@ const Products = () => {
                   <thead className="bg-slate-50 border-b">
                     <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                       <th className="px-4 py-3 min-w-[200px]">제품명 / 규격</th>
-                      <th className="px-4 py-3 text-right text-emerald-600">도매가 A</th>
-                      <th className="px-4 py-3 text-right">도매가 B</th>
-                      <th className="px-4 py-3 text-right">소비자가</th>
+                      <th className="px-4 py-3 text-right text-emerald-600">
+                        도매가 A
+                        <span className="block text-[10px] font-normal opacity-80">위탁가(배송비별도)</span>
+                      </th>
+                      <th className="px-4 py-3 text-right">
+                        도매가 B
+                        <span className="block text-[10px] font-normal text-slate-400">월 40개 이상</span>
+                      </th>
+                      <th className="px-4 py-3 text-right">
+                        소비자가
+                        <span className="block text-[10px] font-normal text-slate-400">Retail Price</span>
+                      </th>
                       {showCost && <th className="px-4 py-3 text-right text-red-500 bg-red-50/50">원가</th>}
                       <th className="px-4 py-3 text-center">유효기간</th>
                       <th className="px-4 py-3 text-center">서류</th>

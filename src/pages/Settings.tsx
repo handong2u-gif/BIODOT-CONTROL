@@ -2,6 +2,8 @@ import { User, Bell, Shield, Database, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const settingsSections = [
   {
@@ -43,6 +45,24 @@ const notificationSettings = [
 ];
 
 export default function Settings() {
+  const handleDeleteAllData = async () => {
+    if (window.confirm('정말로 모든 제품 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      try {
+        const { error } = await (supabase as any)
+          .from('finished_goods')
+          .delete()
+          .gt('id', -1); // Delete all rows
+
+        if (error) throw error;
+
+        toast.success("모든 데이터가 삭제되었습니다.");
+      } catch (error) {
+        console.error('Error deleting data:', error);
+        toast.error("데이터 삭제 중 오류가 발생했습니다.");
+      }
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
@@ -112,9 +132,12 @@ export default function Settings() {
             <p className="font-medium text-success">정상 운영 중</p>
           </div>
         </div>
-        <div className="mt-4 pt-4 border-t">
+        <div className="mt-4 pt-4 border-t flex gap-2">
           <Button variant="outline" size="sm">
             데이터 수동 동기화
+          </Button>
+          <Button variant="destructive" size="sm" onClick={handleDeleteAllData}>
+            데이터 전체 삭제
           </Button>
         </div>
       </div>
