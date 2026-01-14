@@ -27,12 +27,12 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 
-// Match DB Schema
+// Matches DB Schema - Updated with detail_image_url
 interface ProductData {
-  id: number | string; // Adjusted to allow string IDs (for raw_materials CSVs)
+  id: number | string;
   product_name: string;
   spec: string | null;
-  origin_country: string | null; // Added
+  origin_country: string | null;
   wholesale_a: number;
   wholesale_b: number;
   wholesale_c: number;
@@ -41,19 +41,23 @@ interface ProductData {
   expiry_date: string | null;
   inbound_date: string | null;
   thumbnail_url: string | null;
+  detail_image_url: string | null; // Added
   cert_doc_url: string | null;
   report_doc_url: string | null;
-  intro_doc_url: string | null; // Added
+  intro_doc_url: string | null;
   qty_carton: string | null;
-  qty_container: string | null; // Added
+  qty_container: string | null;
   active_clients: string | null;
-  inactive_clients: string | null; // Added
-  unpaid_balance: string | null; // Added
-  last_check_date: string | null; // Added (Date string)
-  competitor_comp: string | null; // Added
+  inactive_clients: string | null;
+  unpaid_balance: string | null;
+  last_check_date: string | null;
+  competitor_comp: string | null;
   memo: string | null;
   created_at: string;
 }
+
+// Import ProductImageManager (Assume it's created)
+import { ProductImageManager } from "@/components/products/ProductImageManager";
 
 const Products = () => {
   // Tabs: 'biodot' (Raw Materials) vs 'biodot-works' (Finished Goods)
@@ -64,14 +68,13 @@ const Products = () => {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [showCost, setShowCost] = useState(false);
 
+  // Admin Mode State (Simple Toggle for now)
+  const [isAdmin, setIsAdmin] = useState(false);
+
   const fetchProducts = async (currentTab: string) => {
     setLoading(true);
     setProducts([]); // Clear current list to avoid confusion
     try {
-      // Logic:
-      // Tab 'biodot' -> fetches from 'raw_materials' table (Raw Materials)
-      // Tab 'biodot-works' -> fetches from 'finished_goods' table (Finished Goods)
-
       const tableName = currentTab === 'biodot' ? 'raw_materials' : 'finished_goods';
 
       const { data, error } = await (supabase as any)
@@ -80,10 +83,9 @@ const Products = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        // Gracefully handle if table doesn't exist (e.g. raw_materials empty/deleted)
         console.warn(`Error fetching ${tableName}:`, error);
+        toast.error("데이터를 불러오지 못했습니다.");
       } else {
-        // Data normalization is no longer needed as both tables now share the same schema structure.
         setProducts(data || []);
       }
     } catch (error: any) {
@@ -103,8 +105,17 @@ const Products = () => {
     return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(amount);
   };
 
+  const handleAdminToggle = (checked: boolean) => {
+    setIsAdmin(checked);
+    if (checked) {
+      toast.info("관리자 모드가 활성화되었습니다. (이미지 업로드 가능)");
+    } else {
+      toast.info("관리자 모드가 해제되었습니다.");
+    }
+  };
+
   return (
-    <div className="space-y-6"> {/* Remove duplicated Layout wrapper */}
+    <div className="space-y-6">
 
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -113,16 +124,28 @@ const Products = () => {
           <p className="text-slate-500 mt-1">통합 제품 DB (CSV 연동)</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Admin Toggle */}
+          <div className="flex items-center gap-2 mr-4 bg-slate-100 p-1.5 px-3 rounded-full">
+            <Switch id="admin-mode" checked={isAdmin} onCheckedChange={handleAdminToggle} className="scale-75 data-[state=checked]:bg-blue-600" />
+            <Label htmlFor="admin-mode" className="text-xs font-medium cursor-pointer text-slate-600">
+              관리자 모드
+            </Label>
+          </div>
+
           <Button onClick={() => fetchProducts(activeTab)} variant="outline" size="sm">
             새로고침
           </Button>
-          <CsvUploadButton
-            tableName={activeTab === 'biodot' ? 'raw_materials' : 'finished_goods'}
-            onUploadComplete={() => fetchProducts(activeTab)}
-          />
-          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
-            <Plus className="w-4 h-4 mr-2" /> 제품 추가
-          </Button>
+          {isAdmin && (
+            <CsvUploadButton
+              tableName={activeTab === 'biodot' ? 'raw_materials' : 'finished_goods'}
+              onUploadComplete={() => fetchProducts(activeTab)}
+            />
+          )}
+          {isAdmin && (
+            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              <Plus className="w-4 h-4 mr-2" /> 제품 추가
+            </Button>
+          )}
         </div>
       </div>
 
@@ -231,9 +254,10 @@ const Products = () => {
                       <th className="px-4 py-3 text-center">유효기간</th>
                       {activeTab === 'biodot' && <th className="px-4 py-3 text-center">입고일</th>}
                       <th className="px-4 py-3 text-center">서류</th>
+                      <th className="px-4 py-3 text-center">이미지</th> {/* New Column */}
                       {activeTab === 'biodot' && <th className="px-4 py-3 text-center">컨테이너/박스</th>}
                       <th className="px-4 py-3">메모</th>
-                      <th className="px-4 py-3 w-[50px]"></th>
+                      {isAdmin && <th className="px-4 py-3 w-[50px]"></th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -281,6 +305,14 @@ const Products = () => {
                             {item.intro_doc_url && <div title="제품소개서"><FileText className="w-4 h-4 text-green-400 hover:text-green-600 cursor-pointer" /></div>}
                           </div>
                         </td>
+                        <td className="px-4 py-3 text-center">
+                          <ProductImageManager
+                            product={item}
+                            tableName={activeTab === 'biodot' ? 'raw_materials' : 'finished_goods'}
+                            isAdmin={isAdmin}
+                            onUpdate={() => fetchProducts(activeTab)}
+                          />
+                        </td>
                         {activeTab === 'biodot' && (
                           <td className="px-4 py-3 text-center text-xs text-slate-500">
                             {item.qty_container || '-'}/{item.qty_carton || '-'}
@@ -291,11 +323,13 @@ const Products = () => {
                             {item.memo || item.active_clients || '-'}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </td>
+                        {isAdmin && (
+                          <td className="px-4 py-3 text-center">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -313,6 +347,14 @@ const Products = () => {
                     ) : (
                       <Package className="w-12 h-12 text-slate-300" />
                     )}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 rounded-full p-1 shadow-sm">
+                      <ProductImageManager
+                        product={item}
+                        tableName={activeTab === 'biodot' ? 'raw_materials' : 'finished_goods'}
+                        isAdmin={isAdmin}
+                        onUpdate={() => fetchProducts(activeTab)}
+                      />
+                    </div>
                   </div>
                   <CardContent className="p-4 pt-5">
                     <div className="mb-4">

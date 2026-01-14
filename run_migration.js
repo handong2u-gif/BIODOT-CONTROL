@@ -100,20 +100,29 @@ async function run() {
     try {
         // Read SQLs
         // We know we need finished_goods first.
-        const files = [
-            'supabase/create_finished_goods.sql',
-            'supabase_schema_suggestion.sql'
-        ];
+        // Read SQLs
+        // If argument provided, use that. Otherwise default.
+        let files = [];
+        if (process.argv[2]) {
+            files = [process.argv[2]];
+        } else {
+            files = [
+                'supabase/create_finished_goods.sql',
+                'supabase_schema_suggestion.sql'
+            ];
+        }
 
         for (const file of files) {
-            const sqlPath = path.join(__dirname, file);
+            // Check if absolute path or relative
+            const sqlPath = path.isAbsolute(file) ? file : path.join(__dirname, file);
+
             if (fs.existsSync(sqlPath)) {
                 console.log(`Running ${file}...`);
                 const sql = fs.readFileSync(sqlPath, 'utf8');
                 await client.query(sql);
                 console.log(`✓ ${file} executed.`);
             } else {
-                console.warn(`! ${file} not found.`);
+                console.warn(`! ${file} not found at ${sqlPath}.`);
             }
         }
 
