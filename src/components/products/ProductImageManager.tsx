@@ -72,19 +72,25 @@ export function ProductImageManager({ product, tableName, isAdmin, onUpdate, tri
     };
 
     const PreviewImage = ({ url, type }: { url: string | null, type: string }) => {
-        if (!url) return <div className="h-40 bg-slate-100 rounded-md flex items-center justify-center text-slate-400 text-sm">이미지 없음</div>;
+        if (!url) return <div className="w-full h-[300px] bg-slate-100 rounded-md flex items-center justify-center text-slate-400 text-sm">이미지 없음</div>;
         return (
-            <div className="relative group rounded-md overflow-hidden border bg-slate-50">
-                <img src={url} alt={type} className="w-full h-40 object-contain" />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <Button size="icon" variant="secondary" onClick={() => window.open(url, '_blank')}>
-                        <ExternalLink className="w-4 h-4" />
-                    </Button>
-                    <a href={url} download target="_blank" rel="noreferrer">
-                        <Button size="icon" variant="secondary">
-                            <Download className="w-4 h-4" />
+            <div className="relative group rounded-md overflow-hidden border bg-slate-50 w-full flex justify-center items-center">
+                <div className="relative w-full max-w-[1000px] aspect-square flex items-center justify-center bg-white">
+                    <img
+                        src={url}
+                        alt={type}
+                        className="w-full h-full object-contain"
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <Button size="icon" variant="secondary" onClick={() => window.open(url, '_blank')}>
+                            <ExternalLink className="w-4 h-4" />
                         </Button>
-                    </a>
+                        <a href={url} download target="_blank" rel="noreferrer">
+                            <Button size="icon" variant="secondary">
+                                <Download className="w-4 h-4" />
+                            </Button>
+                        </a>
+                    </div>
                 </div>
             </div>
         );
@@ -102,7 +108,7 @@ export function ProductImageManager({ product, tableName, isAdmin, onUpdate, tri
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="max-w-[1100px] w-full max-h-[95vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>제품 이미지 관리 - {product.product_name}</DialogTitle>
                 </DialogHeader>
