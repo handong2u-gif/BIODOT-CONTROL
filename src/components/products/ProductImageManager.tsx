@@ -14,11 +14,14 @@ interface ProductImageManagerProps {
     tableName: string;
     isAdmin: boolean;
     onUpdate: () => void;
+    trigger?: React.ReactNode; // Optional custom trigger
 }
 
-export function ProductImageManager({ product, tableName, isAdmin, onUpdate }: ProductImageManagerProps) {
+export function ProductImageManager({ product, tableName, isAdmin, onUpdate, trigger }: ProductImageManagerProps) {
     const [open, setOpen] = useState(false);
     const [uploading, setUploading] = useState<'thumbnail' | 'detail' | null>(null);
+
+    // ... handleUpload and PreviewImage function remain same ...
 
     const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'thumbnail' | 'detail') => {
         try {
@@ -63,7 +66,7 @@ export function ProductImageManager({ product, tableName, isAdmin, onUpdate }: P
             toast.error(`업로드 실패: ${error.message}`);
         } finally {
             setUploading(null);
-            // Reset input
+            // Reset input (hacky but works for simple inputs)
             event.target.value = '';
         }
     };
@@ -90,10 +93,14 @@ export function ProductImageManager({ product, tableName, isAdmin, onUpdate }: P
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 gap-1 text-slate-500 hover:text-blue-600">
-                    <ImageIcon className="w-4 h-4" />
-                    <span className="text-xs">이미지</span>
-                </Button>
+                {trigger ? (
+                    trigger
+                ) : (
+                    <Button variant="ghost" size="sm" className="h-8 gap-1 text-slate-500 hover:text-blue-600">
+                        <ImageIcon className="w-4 h-4" />
+                        <span className="text-xs">이미지</span>
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
