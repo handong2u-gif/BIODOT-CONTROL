@@ -72,10 +72,10 @@ export function ProductImageManager({ product, tableName, isAdmin, onUpdate, tri
     };
 
     const PreviewImage = ({ url, type }: { url: string | null, type: string }) => {
-        if (!url) return <div className="w-full h-[300px] bg-slate-100 rounded-md flex items-center justify-center text-slate-400 text-sm">이미지 없음</div>;
+        if (!url) return <div className="w-full aspect-square bg-slate-100 rounded-md flex items-center justify-center text-slate-400 text-sm">이미지 없음</div>;
         return (
-            <div className="relative group rounded-md overflow-hidden border bg-slate-50 w-full flex justify-center items-center">
-                <div className="relative w-full max-w-[1000px] aspect-square flex items-center justify-center bg-white">
+            <div className="relative group rounded-md overflow-hidden border bg-slate-50 w-full">
+                <div className="relative w-full aspect-square flex items-center justify-center bg-white">
                     <img
                         src={url}
                         alt={type}
@@ -108,7 +108,7 @@ export function ProductImageManager({ product, tableName, isAdmin, onUpdate, tri
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="max-w-[1100px] w-full max-h-[95vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>제품 이미지 관리 - {product.product_name}</DialogTitle>
                 </DialogHeader>
