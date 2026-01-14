@@ -73,14 +73,15 @@ const Products = () => {
 
   const fetchProducts = async (currentTab: string) => {
     setLoading(true);
-    setProducts([]); // Clear current list to avoid confusion
+    // setProducts([]); // Removed to allow smooth info update
     try {
       const tableName = currentTab === 'biodot' ? 'raw_materials' : 'finished_goods';
 
       const { data, error } = await (supabase as any)
         .from(tableName)
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: true });
 
       if (error) {
         console.warn(`Error fetching ${tableName}:`, error);
@@ -97,6 +98,7 @@ const Products = () => {
 
   // Fetch when tab changes
   useEffect(() => {
+    setProducts([]);
     fetchProducts(activeTab);
   }, [activeTab]);
 
@@ -229,7 +231,7 @@ const Products = () => {
                     <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                       <th className="px-4 py-3 min-w-[200px]">제품명 / 규격</th>
                       {activeTab === 'biodot' ? (
-                        <th className="px-4 py-3 text-center">원산지</th>
+                        <th className="px-4 py-3 text-center hidden md:table-cell">원산지</th>
                       ) : null}
                       <th className="px-4 py-3 text-right text-emerald-600">
                         도매가 A
@@ -238,25 +240,25 @@ const Products = () => {
                         )}
                       </th>
                       {activeTab === 'biodot-works' && (
-                        <th className="px-4 py-3 text-right">
+                        <th className="px-4 py-3 text-right hidden lg:table-cell">
                           도매가 B
                           <span className="block text-[10px] font-normal text-slate-400">월 40개 이상</span>
                         </th>
                       )}
 
-                      <th className="px-4 py-3 text-right">
+                      <th className="px-4 py-3 text-right hidden lg:table-cell">
                         {activeTab === 'biodot' ? "한의원 공급가" : "소비자가"}
                         <span className="block text-[10px] font-normal text-slate-400">
                           {activeTab === 'biodot' ? "Clinic Price" : "Retail Price"}
                         </span>
                       </th>
                       {showCost && <th className="px-4 py-3 text-right text-red-500 bg-red-50/50">원가</th>}
-                      <th className="px-4 py-3 text-center">유효기간</th>
-                      {activeTab === 'biodot' && <th className="px-4 py-3 text-center">입고일</th>}
-                      <th className="px-4 py-3 text-center">서류</th>
-                      <th className="px-4 py-3 text-center">이미지</th> {/* New Column */}
-                      {activeTab === 'biodot' && <th className="px-4 py-3 text-center">컨테이너/박스</th>}
-                      <th className="px-4 py-3">메모</th>
+                      <th className="px-4 py-3 text-center hidden md:table-cell">유효기간</th>
+                      {activeTab === 'biodot' && <th className="px-4 py-3 text-center hidden md:table-cell">입고일</th>}
+                      <th className="px-4 py-3 text-center hidden sm:table-cell">서류</th>
+                      {/* Image merged into Name */}
+                      {activeTab === 'biodot' && <th className="px-4 py-3 text-center hidden lg:table-cell">컨테이너/박스</th>}
+                      <th className="px-4 py-3 hidden xl:table-cell">메모</th>
                       {isAdmin && <th className="px-4 py-3 w-[50px]"></th>}
                     </tr>
                   </thead>
@@ -264,12 +266,37 @@ const Products = () => {
                     {products.map((item) => (
                       <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group text-slate-700">
                         <td className="px-4 py-3">
-                          <div className="font-medium text-slate-900">{item.product_name}</div>
-                          {item.spec && <div className="text-xs text-slate-500 mt-0.5">{item.spec}</div>}
+                          <div className="flex items-start gap-3">
+                            <div className="shrink-0">
+                              <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-emerald-500 hover:ring-offset-1 transition-all">
+                                <ProductImageManager
+                                  product={item}
+                                  tableName={activeTab === 'biodot' ? 'raw_materials' : 'finished_goods'}
+                                  isAdmin={isAdmin}
+                                  onUpdate={() => fetchProducts(activeTab)}
+                                  trigger={
+                                    item.thumbnail_url ? (
+                                      <img src={item.thumbnail_url} alt={item.product_name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <ImageIcon className="w-5 h-5 text-slate-300" />
+                                    )
+                                  }
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium text-slate-900 line-clamp-2">{item.product_name}</div>
+                              {item.spec && <div className="text-xs text-slate-500 mt-0.5">{item.spec}</div>}
+                              <div className="md:hidden mt-1 space-y-0.5">
+                                {item.origin_country && <div className="text-[10px] text-slate-400">원산지: {item.origin_country}</div>}
+                                {item.expiry_date && <div className="text-[10px] text-slate-400">EXP: {item.expiry_date}</div>}
+                              </div>
+                            </div>
+                          </div>
                         </td>
 
                         {activeTab === 'biodot' && (
-                          <td className="px-4 py-3 text-center text-slate-600 text-sm">
+                          <td className="px-4 py-3 text-center text-slate-600 text-sm hidden md:table-cell">
                             {item.origin_country || '-'}
                           </td>
                         )}
@@ -278,11 +305,11 @@ const Products = () => {
                           {formatMoney(item.wholesale_a)}
                         </td>
                         {activeTab === 'biodot-works' && (
-                          <td className="px-4 py-3 text-right text-slate-600">
+                          <td className="px-4 py-3 text-right text-slate-600 hidden lg:table-cell">
                             {formatMoney(item.wholesale_b)}
                           </td>
                         )}
-                        <td className="px-4 py-3 text-right text-slate-600">
+                        <td className="px-4 py-3 text-right text-slate-600 hidden lg:table-cell">
                           {formatMoney(item.retail_price)}
                         </td>
                         {showCost && (
@@ -290,35 +317,28 @@ const Products = () => {
                             {formatMoney(item.cost_blind)}
                           </td>
                         )}
-                        <td className="px-4 py-3 text-center text-xs text-slate-500">
+                        <td className="px-4 py-3 text-center text-xs text-slate-500 hidden md:table-cell">
                           {item.expiry_date || '-'}
                         </td>
                         {activeTab === 'biodot' && (
-                          <td className="px-4 py-3 text-center text-xs text-slate-500">
+                          <td className="px-4 py-3 text-center text-xs text-slate-500 hidden md:table-cell">
                             {item.inbound_date || '-'}
                           </td>
                         )}
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3 text-center hidden sm:table-cell">
                           <div className="flex justify-center gap-2 text-slate-400">
                             {item.cert_doc_url && <div title="성적서"><FileText className="w-4 h-4 text-blue-400 hover:text-blue-600 cursor-pointer" /></div>}
                             {item.report_doc_url && <div title="제조보고서"><FileText className="w-4 h-4 text-orange-400 hover:text-orange-600 cursor-pointer" /></div>}
                             {item.intro_doc_url && <div title="제품소개서"><FileText className="w-4 h-4 text-green-400 hover:text-green-600 cursor-pointer" /></div>}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <ProductImageManager
-                            product={item}
-                            tableName={activeTab === 'biodot' ? 'raw_materials' : 'finished_goods'}
-                            isAdmin={isAdmin}
-                            onUpdate={() => fetchProducts(activeTab)}
-                          />
-                        </td>
+
                         {activeTab === 'biodot' && (
-                          <td className="px-4 py-3 text-center text-xs text-slate-500">
+                          <td className="px-4 py-3 text-center text-xs text-slate-500 hidden lg:table-cell">
                             {item.qty_container || '-'}/{item.qty_carton || '-'}
                           </td>
                         )}
-                        <td className="px-4 py-3 max-w-[200px]">
+                        <td className="px-4 py-3 max-w-[200px] hidden xl:table-cell">
                           <div className="truncate text-xs text-slate-600" title={item.memo || ''}>
                             {item.memo || item.active_clients || '-'}
                           </div>
