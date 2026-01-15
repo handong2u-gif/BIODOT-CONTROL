@@ -7,6 +7,7 @@ import { supabase } from "./lib/supabase";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
+import ProductDetail from "./pages/ProductDetail"; // Added
 import Clients from "./pages/Clients";
 import Documents from "./pages/Documents";
 import Policies from "./pages/Policies";
@@ -27,6 +28,7 @@ const App = () => (
           <Route element={<AppLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/products" element={<Products />} />
+            <Route path="/products/:id" element={<ProductDetail />} /> {/* Added */}
             <Route path="/clients" element={<Clients />} />
             <Route path="/documents" element={<Documents />} />
             <Route path="/policies" element={<Policies />} />
