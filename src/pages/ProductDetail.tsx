@@ -4,9 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Package, MapPin, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Package, MapPin, CheckCircle2, AlertCircle, FileText, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface ProductDetailData {
     id: number | string;
@@ -28,10 +30,27 @@ interface ProductDetailData {
     memo: string | null; // section memo
 }
 
+interface ProductDocument {
+    id: number;
+    name: string;
+    url: string;
+    is_current: boolean;
+    created_at: string;
+}
+
+interface SpecialPrice {
+    id: number;
+    price: number;
+    description: string | null;
+    is_active: boolean;
+}
+
 const ProductDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [product, setProduct] = useState<ProductDetailData | null>(null);
+    const [documents, setDocuments] = useState<ProductDocument[]>([]);
+    const [specialPrices, setSpecialPrices] = useState<SpecialPrice[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -47,13 +66,29 @@ const ProductDetail = () => {
                 .single();
 
             if (error) {
-                // Fallback to raw_materials if not found (optional, but good for robust routing)
-                // For now, assume id comes from finished_goods as per plan
                 console.error("Error fetching product:", error);
                 toast.error("제품을 불러올 수 없습니다.");
                 navigate("/products");
             } else {
                 setProduct(data as any);
+
+                // Fetch Sub-tables (Documents & Special Prices)
+                // Note: Using 'any' cast as types might not be fully generated yet
+                const { data: docs } = await (supabase as any)
+                    .from('product_documents')
+                    .select('*')
+                    .eq('product_id', id)
+                    .eq('is_current', true);
+
+                if (docs) setDocuments(docs);
+
+                const { data: prices } = await (supabase as any)
+                    .from('product_special_prices')
+                    .select('*')
+                    .eq('product_id', id)
+                    .eq('is_active', true);
+
+                if (prices) setSpecialPrices(prices);
             }
             setLoading(false);
         };
@@ -108,10 +143,14 @@ const ProductDetail = () => {
                         )}
                         {product.stock_status && (
                             <div className="absolute top-4 left-4">
-                                {product.stock_status === 'out_of_stock' ? (
+                                {product.stock_status === '품절' || product.stock_status === 'out_of_stock' ? (
                                     <Badge variant="destructive" className="h-8 px-3 text-sm">품절</Badge>
+                                ) : product.stock_status === '소량' ? (
+                                    <Badge variant="secondary" className="h-8 px-3 text-sm bg-orange-100 text-orange-700 hover:bg-orange-200">소량 (Low Stock)</Badge>
                                 ) : (
-                                    <Badge className="h-8 px-3 text-sm bg-emerald-600 hover:bg-emerald-700">판매중</Badge>
+                                    <Badge className="h-8 px-3 text-sm bg-emerald-600 hover:bg-emerald-700">
+                                        {product.stock_status === '충분' ? '충분 (In Stock)' : product.stock_status === '보통' ? '보통 (Normal)' : '판매중'}
+                                    </Badge>
                                 )}
                             </div>
                         )}
@@ -126,7 +165,10 @@ const ProductDetail = () => {
                             <div>
                                 <span className="text-slate-500 block text-xs mb-1">재고 상태</span>
                                 <span className="font-medium">
-                                    {product.stock_status === 'out_of_stock' ? '품절' : '보유중 (In Stock)'}
+                                    {product.stock_status === 'out_of_stock' ? '품절' :
+                                        product.stock_status === '충분' ? '충분 (In Stock)' :
+                                            product.stock_status === '보통' ? '보통 (Normal)' :
+                                                product.stock_status === '소량' ? '소량 (Low)' : '보유중'}
                                 </span>
                             </div>
                             <div>
@@ -152,89 +194,152 @@ const ProductDetail = () => {
                 {/* RIGHT COLUMN: INFO */}
                 <div className="space-y-8">
 
-                    {/* HEADER SECTION */}
-                    <div>
-                        <div className="flex flex-wrap gap-2 mb-3">
-                            {product.tags?.map((tag, i) => (
-                                <Badge key={i} variant="secondary" className="px-2 py-0.5 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100">#{tag}</Badge>
-                            ))}
-                            {!product.tags && <Badge variant="secondary" className="px-2 py-0.5 text-xs opacity-50">태그 없음</Badge>}
-                        </div>
-                        <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">{product.name}</h1>
-                        <p className="text-lg text-slate-500 font-medium">{product.spec || '규격 정보 없음'}</p>
-                    </div>
+                    <Tabs defaultValue="info" className="w-full">
+                        <TabsList className="bg-slate-100 w-full justify-start rounded-lg p-1 mb-6">
+                            <TabsTrigger value="info" className="flex-1 max-w-[120px]">상세 정보</TabsTrigger>
+                            <TabsTrigger value="documents" className="flex-1 max-w-[120px] gap-2">
+                                문서 <span className="text-[10px] bg-slate-200 px-1.5 rounded-full min-w-[16px] h-4 flex items-center justify-center">{documents.length}</span>
+                            </TabsTrigger>
+                        </TabsList>
 
-                    <Separator />
+                        <TabsContent value="info" className="space-y-8 animate-in slide-in-from-bottom-2 duration-300">
 
-                    {/* PRICE SECTION */}
-                    <div className="space-y-4">
-                        <h3 className="text-sm font-semibold text-slate-900">가격 정보</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-4 rounded-lg bg-emerald-50/50 border border-emerald-100">
-                                <span className="text-xs text-emerald-600 font-semibold block mb-1">도매가 A</span>
-                                <span className="text-2xl font-bold text-emerald-800">{formatMoney(product.wholesale_price_a)}</span>
-                            </div>
-                            <div className="p-4 rounded-lg bg-white border border-slate-200">
-                                <span className="text-xs text-slate-500 block mb-1">소비자가</span>
-                                <span className="text-xl font-semibold text-slate-700">{formatMoney(product.retail_price)}</span>
-                            </div>
-                            <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                                <span className="text-xs text-slate-400 block mb-1">도매가 B</span>
-                                <span className="text-lg text-slate-600">{formatMoney(product.wholesale_price_b)}</span>
-                            </div>
-                            <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                                <span className="text-xs text-slate-400 block mb-1">도매가 C</span>
-                                <span className="text-lg text-slate-600">{formatMoney(product.wholesale_price_c)}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* SELLING SECTION */}
-                    <div className="space-y-6">
-                        <div>
-                            <h3 className="text-sm font-semibold text-slate-900 mb-2">Selling Point</h3>
-                            <p className="text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-100">
-                                {product.selling_point || '등록된 셀링 포인트가 없습니다.'}
-                            </p>
-                        </div>
-
-                        <div>
-                            <h3 className="text-sm font-semibold text-slate-900 mb-2">Key Features</h3>
-                            {product.key_features && product.key_features.length > 0 ? (
-                                <ul className="grid gap-2">
-                                    {product.key_features.map((feature, i) => (
-                                        <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
-                                            <span>{feature}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-sm text-slate-400 italic">등록된 특징이 없습니다.</p>
-                            )}
-                        </div>
-
-                        <div>
-                            <h3 className="text-sm font-semibold text-slate-900 mb-2">타겟 고객</h3>
-                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-medium">
-                                <span className="w-2 h-2 rounded-full bg-blue-500" />
-                                {product.target_customer || '전체 고객'}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* MEMO SECTION */}
-                    {(product.memo) && (
-                        <div className="bg-yellow-50/50 border border-yellow-100 rounded-lg p-4 text-sm text-yellow-800 flex gap-3 items-start">
-                            <AlertCircle className="w-5 h-5 shrink-0 text-yellow-500" />
+                            {/* HEADER SECTION */}
                             <div>
-                                <span className="font-semibold block mb-1 text-yellow-700">관리자 메모</span>
-                                {product.memo}
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    {product.tags?.map((tag, i) => (
+                                        <Badge key={i} variant="secondary" className="px-2 py-0.5 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100 cursor-default">#{tag}</Badge>
+                                    ))}
+                                    {!product.tags && <Badge variant="secondary" className="px-2 py-0.5 text-xs opacity-50">태그 없음</Badge>}
+                                </div>
+                                <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">{product.name}</h1>
+                                <p className="text-lg text-slate-500 font-medium">{product.spec || '규격 정보 없음'}</p>
                             </div>
-                        </div>
-                    )}
+
+                            <Separator />
+
+                            {/* PRICE SECTION */}
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-semibold text-slate-900">가격 정보</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-4 rounded-lg bg-emerald-50/50 border border-emerald-100">
+                                        <span className="text-xs text-emerald-600 font-semibold block mb-1">도매가 A</span>
+                                        <span className="text-2xl font-bold text-emerald-800">{formatMoney(product.wholesale_price_a)}</span>
+                                    </div>
+                                    <div className="p-4 rounded-lg bg-white border border-slate-200">
+                                        <span className="text-xs text-slate-500 block mb-1">소비자가</span>
+                                        <span className="text-xl font-semibold text-slate-700">{formatMoney(product.retail_price)}</span>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                                        <span className="text-xs text-slate-400 block mb-1">도매가 B</span>
+                                        <span className="text-lg text-slate-600">{formatMoney(product.wholesale_price_b)}</span>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                                        <span className="text-xs text-slate-400 block mb-1">도매가 C</span>
+                                        <span className="text-lg text-slate-600">{formatMoney(product.wholesale_price_c)}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* SPECIAL PRICES SECTION */}
+                            {specialPrices.length > 0 && (
+                                <div className="space-y-3 p-4 bg-orange-50/50 rounded-xl border border-orange-100">
+                                    <h3 className="text-sm font-semibold text-orange-900 flex items-center gap-2">
+                                        <AlertCircle className="w-4 h-4 text-orange-500" />
+                                        특별 할인가 (Special Prices)
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {specialPrices.map(sp => (
+                                            <div key={sp.id} className="flex justify-between items-center bg-white p-3 rounded-lg border border-orange-100 shadow-sm">
+                                                <span className="text-sm text-slate-600 font-medium">{sp.description || '특별 할인'}</span>
+                                                <span className="text-lg font-bold text-orange-600">{formatMoney(sp.price)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <Separator />
+
+                            {/* SELLING SECTION */}
+                            <div className="space-y-6">
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-900 mb-2">Selling Point</h3>
+                                    <p className="text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                        {product.selling_point || '등록된 셀링 포인트가 없습니다.'}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-900 mb-2">Key Features</h3>
+                                    {product.key_features && product.key_features.length > 0 ? (
+                                        <ul className="grid gap-2">
+                                            {product.key_features.map((feature, i) => (
+                                                <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                                                    <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                                                    <span>{feature}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-sm text-slate-400 italic">등록된 특징이 없습니다.</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-900 mb-2">타겟 고객</h3>
+                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-medium">
+                                        <span className="w-2 h-2 rounded-full bg-blue-500" />
+                                        {product.target_customer || '전체 고객'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* MEMO SECTION */}
+                            {(product.memo) && (
+                                <div className="bg-yellow-50/50 border border-yellow-100 rounded-lg p-4 text-sm text-yellow-800 flex gap-3 items-start">
+                                    <AlertCircle className="w-5 h-5 shrink-0 text-yellow-500" />
+                                    <div>
+                                        <span className="font-semibold block mb-1 text-yellow-700">관리자 메모</span>
+                                        {product.memo}
+                                    </div>
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="documents" className="space-y-4 animate-in slide-in-from-bottom-2 duration-300">
+                            {documents.length === 0 ? (
+                                <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                    <FileText className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+                                    <p className="text-slate-500 font-medium">등록된 문서가 없습니다.</p>
+                                    <p className="text-xs text-slate-400">관리자에게 문의해주세요.</p>
+                                </div>
+                            ) : (
+                                <div className="grid gap-3">
+                                    {documents.map(doc => (
+                                        <Card key={doc.id} className="hover:border-emerald-200 transition-colors group">
+                                            <CardContent className="p-4 flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
+                                                        <FileText className="w-5 h-5" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-slate-900">{doc.name}</p>
+                                                        <p className="text-xs text-slate-400">{new Date(doc.created_at).toLocaleDateString()} 등록</p>
+                                                    </div>
+                                                </div>
+                                                <a href={doc.url} download target="_blank" rel="noreferrer">
+                                                    <Button variant="outline" size="sm" className="gap-2 group-hover:border-emerald-200">
+                                                        <Download className="w-4 h-4" /> <span className="hidden sm:inline">다운로드</span>
+                                                    </Button>
+                                                </a>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
+                    </Tabs>
 
                 </div>
             </div>

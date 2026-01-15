@@ -70,6 +70,8 @@ const Products = () => {
   const [activeTab, setActiveTab] = useState("biodot-works");
 
   const [products, setProducts] = useState<ProductData[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<ProductData[]>([]); // Added for search
+  const [searchTerm, setSearchTerm] = useState(""); // Added
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [showCost, setShowCost] = useState(false);
@@ -86,7 +88,9 @@ const Products = () => {
       const { data, error } = await (supabase as any)
         .from(tableName)
         .select('*')
-        .order('created_at', { ascending: false })
+        .from(tableName)
+        .select('*')
+        .order('updated_at', { ascending: false }) // Default sort
         .order('id', { ascending: true });
 
       if (error) {
@@ -94,6 +98,7 @@ const Products = () => {
         toast.error("데이터를 불러오지 못했습니다.");
       } else {
         setProducts(data || []);
+        setFilteredProducts(data || []); // Initialize filtered
       }
     } catch (error: any) {
       console.error('Error fetching products:', error);
@@ -213,7 +218,23 @@ const Products = () => {
           <div className="flex flex-wrap gap-3 bg-white p-4 rounded-xl border shadow-sm">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input placeholder="제품명, 규격, 메모 검색..." className="pl-9 bg-slate-50 border-slate-200" />
+              <Input
+                placeholder="제품명, 규격, 태그 검색..."
+                className="pl-9 bg-slate-50 border-slate-200"
+                value={searchTerm}
+                onChange={(e) => {
+                  const term = e.target.value.toLowerCase();
+                  setSearchTerm(term);
+                  if (!term) {
+                    setFilteredProducts(products);
+                  } else {
+                    setFilteredProducts(products.filter(p =>
+                      p.product_name?.toLowerCase().includes(term) ||
+                      p.tags?.some(tag => tag.toLowerCase().includes(term)) // Search in tags
+                    ));
+                  }
+                }}
+              />
             </div>
             <Button variant="outline" size="icon"><Filter className="w-4 h-4" /></Button>
           </div>
@@ -269,7 +290,7 @@ const Products = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {products.map((item) => (
+                    {filteredProducts.map((item) => (
                       <tr
                         key={item.id}
                         className="hover:bg-slate-50/80 transition-colors group text-slate-700 cursor-pointer"
@@ -356,7 +377,7 @@ const Products = () => {
           ) : (
             // --- GRID VIEW ---
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.map((item) => (
+              {filteredProducts.map((item) => (
                 <Card
                   key={item.id}
                   className="hover:shadow-md transition-shadow group overflow-hidden border-slate-200 cursor-pointer"
