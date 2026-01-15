@@ -20,6 +20,7 @@ interface ProductDetailData {
     wholesale_price_c: number; // price_wholesale_c
     retail_price: number; // price_retail
     detail_image_url: string | null; // display_image_url
+    thumbnail_url: string | null; // Added
     stock_status: string | null; // meta
     tags: string[] | null; // header
     selling_point: string | null; // section selling
@@ -149,9 +150,9 @@ const ProductDetail = () => {
                 {/* LEFT COLUMN: IMAGE */}
                 <div className="space-y-6">
                     <div className="aspect-square bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center relative group">
-                        {product.detail_image_url ? (
+                        {product.thumbnail_url || product.detail_image_url ? (
                             <img
-                                src={product.detail_image_url}
+                                src={product.thumbnail_url || product.detail_image_url || ''}
                                 alt={product.name}
                                 className="w-full h-full object-cover"
                             />
