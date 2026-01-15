@@ -88,8 +88,6 @@ const Products = () => {
       const { data, error } = await (supabase as any)
         .from(tableName)
         .select('*')
-        .from(tableName)
-        .select('*')
         .order('id', { ascending: true }); // Reverting to id/created_at as updated_at might not exist yet
 
       if (error) {
