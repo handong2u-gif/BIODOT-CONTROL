@@ -90,8 +90,7 @@ const Products = () => {
         .select('*')
         .from(tableName)
         .select('*')
-        .order('updated_at', { ascending: false }) // Default sort
-        .order('id', { ascending: true });
+        .order('id', { ascending: true }); // Reverting to id/created_at as updated_at might not exist yet
 
       if (error) {
         console.warn(`Error fetching ${tableName}:`, error);
