@@ -65,6 +65,95 @@ const ProductDetail = () => {
     const [specialPrices, setSpecialPrices] = useState<SpecialPrice[]>([]);
     const [logistics, setLogistics] = useState<LogisticsSpecs | null>(null);
     const [loading, setLoading] = useState(true);
+    const [uploading, setUploading] = useState(false);
+
+    const refreshDocuments = async () => {
+        if (!id) return;
+        const { data: docs } = await (supabase as any)
+            .from('product_documents')
+            .select('*')
+            .eq('product_id', id)
+            .eq('is_current', true)
+            .order('created_at', { ascending: false });
+
+        if (docs) setDocuments(docs);
+    };
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        try {
+            if (!event.target.files || event.target.files.length === 0) {
+                return;
+            }
+            if (!id) return;
+
+            setUploading(true);
+            const file = event.target.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${id}/${Math.random()}.${fileExt}`;
+            const filePath = `${fileName}`;
+
+            // 1. Upload to Storage
+            const { error: uploadError } = await (supabase.storage as any)
+                .from('product_documents')
+                .upload(filePath, file);
+
+            if (uploadError) {
+                throw uploadError;
+            }
+
+            // 2. Get Public URL
+            const { data: { publicUrl } } = (supabase.storage as any)
+                .from('product_documents')
+                .getPublicUrl(filePath);
+
+            // 3. Insert into Database
+            const { error: dbError } = await (supabase as any)
+                .from('product_documents')
+                .insert({
+                    product_id: id,
+                    name: file.name,
+                    url: publicUrl,
+                    is_current: true
+                });
+
+            if (dbError) {
+                throw dbError;
+            }
+
+            toast.success("문서가 성공적으로 업로드되었습니다.");
+            await refreshDocuments();
+
+        } catch (error) {
+            console.error('Upload error:', error);
+            toast.error("업로드에 실패했습니다. 관리자에게 문의하세요.");
+        } finally {
+            setUploading(false);
+            // Clear input
+            event.target.value = '';
+        }
+    };
+
+    const handleDeleteDocument = async (docId: number, docName: string) => {
+        if (!confirm(`'${docName}' 문서를 삭제하시겠습니까?`)) return;
+
+        try {
+            // Soft delete in DB (set is_current to false) or Hard Delete
+            // Let's do Hard Delete for now for simplicity, or just update is_current
+            const { error } = await (supabase as any)
+                .from('product_documents')
+                .delete()
+                .eq('id', docId);
+
+            if (error) throw error;
+
+            toast.success("문서가 삭제되었습니다.");
+            setDocuments(documents.filter(d => d.id !== docId));
+
+        } catch (error) {
+            console.error('Delete error:', error);
+            toast.error("삭제 중 오류가 발생했습니다.");
+        }
+    };
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -332,11 +421,39 @@ const ProductDetail = () => {
                         </TabsContent>
 
                         <TabsContent value="documents" className="space-y-4 animate-in slide-in-from-bottom-2 duration-300">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold">문서 목록</h3>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="file"
+                                        id="doc-upload"
+                                        className="hidden"
+                                        onChange={handleFileUpload}
+                                        disabled={uploading}
+                                    />
+                                    <label htmlFor="doc-upload">
+                                        <Button variant="outline" size="sm" className="cursor-pointer" asChild disabled={uploading}>
+                                            <span>
+                                                {uploading ? (
+                                                    <>
+                                                        <span className="animate-spin mr-2">⏳</span> 업로드 중...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <FileText className="w-4 h-4 mr-2" /> 문서 업로드
+                                                    </>
+                                                )}
+                                            </span>
+                                        </Button>
+                                    </label>
+                                </div>
+                            </div>
+
                             {documents.length === 0 ? (
                                 <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                                     <FileText className="w-12 h-12 mx-auto text-slate-300 mb-3" />
                                     <p className="text-slate-500 font-medium">등록된 문서가 없습니다.</p>
-                                    <p className="text-xs text-slate-400">관리자에게 문의해주세요.</p>
+                                    <p className="text-xs text-slate-400">우측 상단 버튼을 눌러 문서를 업로드하세요.</p>
                                 </div>
                             ) : (
                                 <div className="grid gap-3">
@@ -352,11 +469,21 @@ const ProductDetail = () => {
                                                         <p className="text-xs text-slate-400">{new Date(doc.created_at).toLocaleDateString()} 등록</p>
                                                     </div>
                                                 </div>
-                                                <a href={doc.url} download target="_blank" rel="noreferrer">
-                                                    <Button variant="outline" size="sm" className="gap-2 group-hover:border-emerald-200">
-                                                        <Download className="w-4 h-4" /> <span className="hidden sm:inline">다운로드</span>
+                                                <div className="flex items-center gap-2">
+                                                    <a href={doc.url} download target="_blank" rel="noreferrer">
+                                                        <Button variant="outline" size="sm" className="gap-2 group-hover:border-emerald-200">
+                                                            <Download className="w-4 h-4" /> <span className="hidden sm:inline">다운로드</span>
+                                                        </Button>
+                                                    </a>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                        onClick={() => handleDeleteDocument(doc.id, doc.name)}
+                                                    >
+                                                        삭제
                                                     </Button>
-                                                </a>
+                                                </div>
                                             </CardContent>
                                         </Card>
                                     ))}
