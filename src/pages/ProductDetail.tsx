@@ -12,23 +12,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ProductDetailData {
     id: number | string;
-    name: string; // product_name mapped
+    product_name: string;
     spec: string | null;
     origin_country: string | null;
-    wholesale_price_a: number; // price_wholesale_a
-    wholesale_price_b: number; // price_wholesale_b
-    wholesale_price_c: number; // price_wholesale_c
-    retail_price: number; // price_retail
-    detail_image_url: string | null; // display_image_url
-    thumbnail_url: string | null; // Added
-    stock_status: string | null; // meta
-    tags: string[] | null; // header
-    selling_point: string | null; // section selling
-    key_features: string[] | null; // section selling
-    target_customer: string | null; // section selling
-    expiration_date: string | null; // meta
-    created_at: string; // meta (inbound_date placeholder)
-    memo: string | null; // section memo
+    wholesale_price_a: number;
+    wholesale_price_b: number;
+    wholesale_price_c: number;
+    retail_price: number;
+    detail_image_url: string | null;
+    thumbnail_url: string | null;
+    stock_status: string | null;
+    tags: string[] | null;
+    selling_point: string | null;
+    key_features: string[] | null;
+    target_customer: string | null;
+    expiry_date: string | null;
+    created_at: string;
+    memo: string | null;
 }
 
 interface ProductDocument {
@@ -48,14 +48,21 @@ interface SpecialPrice {
 
 interface LogisticsSpecs {
     id: number;
-    unit_weight_kg: number | null;
+    product_weight_g: number | null;
     carton_weight_kg: number | null;
     carton_width_mm: number | null;
     carton_depth_mm: number | null;
     carton_height_mm: number | null;
-    qty_per_carton: number | null;
-    qty_per_pallet: number | null;
+    units_per_carton: number | null;
+    cartons_per_pallet: number | null;
 }
+
+// ... internal implementation ...
+// usage update:
+// product.expiry_date
+// logistics.units_per_carton
+// logistics.cartons_per_pallet
+
 
 const ProductDetail = () => {
     const { id } = useParams();
@@ -123,9 +130,28 @@ const ProductDetail = () => {
             toast.success("문서가 성공적으로 업로드되었습니다.");
             await refreshDocuments();
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Upload error:', error);
-            toast.error("업로드에 실패했습니다. 관리자에게 문의하세요.");
+            // More detailed error message
+            const msg = error.message || "알 수 없는 오류";
+            const fullError = JSON.stringify(error, null, 2);
+
+            if (msg.includes('row level security')) {
+                const alertMsg = `[권한 오류] 데이터베이스 정책(RLS)이 설정되지 않았습니다.\nSQL Editor에서 정책을 추가해주세요.`;
+                toast.error(alertMsg);
+                alert(alertMsg);
+            } else if (msg.includes('product_documents')) {
+                const alertMsg = `[테이블 오류] 'product_documents' 테이블이 없습니다.\nSQL Editor에서 CREATE TABLE 문을 실행해주세요.`;
+                toast.error(alertMsg);
+                alert(alertMsg);
+            } else if (msg.includes('Bucket not found') || msg.includes('The resource was not found')) {
+                const alertMsg = `[스토리지 오류] 'product_documents' 버킷이 없습니다.\nSupabase Storage 메뉴에서 새 버킷을 만들고 'Public'으로 설정해주세요.`;
+                toast.error(alertMsg);
+                alert(alertMsg);
+            } else {
+                toast.error(`업로드 실패: ${msg}`);
+                alert(`업로드 실패 상세:\n${msg}\n\n혹시 프로젝트가 일시 중지(Paused) 상태인지 확인해주세요.\n\n전체 에러:\n${fullError}`);
+            }
         } finally {
             setUploading(false);
             // Clear input
@@ -149,9 +175,9 @@ const ProductDetail = () => {
             toast.success("문서가 삭제되었습니다.");
             setDocuments(documents.filter(d => d.id !== docId));
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Delete error:', error);
-            toast.error("삭제 중 오류가 발생했습니다.");
+            toast.error(`삭제 실패: ${error.message || "알 수 없는 오류"}`);
         }
     };
 
@@ -242,7 +268,7 @@ const ProductDetail = () => {
                         {product.thumbnail_url || product.detail_image_url ? (
                             <img
                                 src={product.thumbnail_url || product.detail_image_url || ''}
-                                alt={product.name}
+                                alt={product.product_name}
                                 className="w-full h-full object-cover"
                             />
                         ) : (
@@ -283,7 +309,7 @@ const ProductDetail = () => {
                             </div>
                             <div>
                                 <span className="text-slate-500 block text-xs mb-1">유통기한</span>
-                                <span className="font-medium">{product.expiration_date || '-'}</span>
+                                <span className="font-medium">{product.expiry_date || '-'}</span>
                             </div>
                             <div>
                                 <span className="text-slate-500 block text-xs mb-1">입고일 (등록일)</span>
@@ -325,7 +351,7 @@ const ProductDetail = () => {
                                     ))}
                                     {!product.tags && <Badge variant="secondary" className="px-2 py-0.5 text-xs opacity-50">태그 없음</Badge>}
                                 </div>
-                                <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">{product.name}</h1>
+                                <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">{product.product_name}</h1>
                                 <p className="text-lg text-slate-500 font-medium">{product.spec || '규격 정보 없음'}</p>
                             </div>
 
@@ -509,7 +535,7 @@ const ProductDetail = () => {
                                             <div className="grid grid-cols-2 gap-4 text-sm">
                                                 <div>
                                                     <span className="block text-slate-500 text-xs mb-1">단위 중량 (Unit Weight)</span>
-                                                    <span className="font-medium">{logistics.unit_weight_kg ? `${logistics.unit_weight_kg} kg` : '-'}</span>
+                                                    <span className="font-medium">{logistics.product_weight_g ? `${logistics.product_weight_g} g` : '-'}</span>
                                                 </div>
                                             </div>
                                         </CardContent>
@@ -525,7 +551,7 @@ const ProductDetail = () => {
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                                 <div>
                                                     <span className="block text-slate-500 text-xs mb-1">카톤 입수 (Qty/Carton)</span>
-                                                    <span className="font-medium">{logistics.qty_per_carton ? `${logistics.qty_per_carton} ea` : '-'}</span>
+                                                    <span className="font-medium">{logistics.units_per_carton ? `${logistics.units_per_carton} ea` : '-'}</span>
                                                 </div>
                                                 <div>
                                                     <span className="block text-slate-500 text-xs mb-1">카톤 중량 (Carton Weight)</span>
@@ -552,8 +578,8 @@ const ProductDetail = () => {
                                         <CardContent>
                                             <div className="grid grid-cols-2 gap-4 text-sm">
                                                 <div>
-                                                    <span className="block text-slate-500 text-xs mb-1">팔레트 적재량 (Qty/Pallet)</span>
-                                                    <span className="font-medium">{logistics.qty_per_pallet ? `${logistics.qty_per_pallet} ea` : '-'}</span>
+                                                    <span className="block text-slate-500 text-xs mb-1">팔레트 적재량 (Cartons/Pallet)</span>
+                                                    <span className="font-medium">{logistics.cartons_per_pallet ? `${logistics.cartons_per_pallet} box` : '-'}</span>
                                                 </div>
                                             </div>
                                         </CardContent>
