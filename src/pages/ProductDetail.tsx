@@ -15,9 +15,9 @@ interface ProductDetailData {
     product_name: string;
     spec: string | null;
     origin_country: string | null;
-    wholesale_price_a: number;
-    wholesale_price_b: number;
-    wholesale_price_c: number;
+    wholesale_a: number;
+    wholesale_b: number;
+    wholesale_c: number;
     retail_price: number;
     detail_image_url: string | null;
     thumbnail_url: string | null;
@@ -359,7 +359,7 @@ const ProductDetail = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="p-4 rounded-lg bg-emerald-50/50 border border-emerald-100">
                                         <span className="text-xs text-emerald-600 font-semibold block mb-1">도매가 A</span>
-                                        <span className="text-2xl font-bold text-emerald-800">{formatMoney(product.wholesale_price_a)}</span>
+                                        <span className="text-2xl font-bold text-emerald-800">{formatMoney(product.wholesale_a)}</span>
                                     </div>
                                     <div className="p-4 rounded-lg bg-white border border-slate-200">
                                         <span className="text-xs text-slate-500 block mb-1">소비자가</span>
@@ -367,11 +367,11 @@ const ProductDetail = () => {
                                     </div>
                                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
                                         <span className="text-xs text-slate-400 block mb-1">도매가 B</span>
-                                        <span className="text-lg text-slate-600">{formatMoney(product.wholesale_price_b)}</span>
+                                        <span className="text-lg text-slate-600">{formatMoney(product.wholesale_b)}</span>
                                     </div>
                                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
                                         <span className="text-xs text-slate-400 block mb-1">도매가 C</span>
-                                        <span className="text-lg text-slate-600">{formatMoney(product.wholesale_price_c)}</span>
+                                        <span className="text-lg text-slate-600">{formatMoney(product.wholesale_c)}</span>
                                     </div>
                                 </div>
                             </div>
