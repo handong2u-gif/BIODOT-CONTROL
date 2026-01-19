@@ -27,6 +27,7 @@ const DEFAULT_MAP = [
   { label: '도매가A', key: 'wholesale_a' },
   { label: '도매가B', key: 'wholesale_b' },
   { label: '소비자가', key: 'retail_price' },
+  { label: '온라인판매가', key: 'online_price' }, // Added default mapping
   { label: '소비기한', key: 'expiry_date' },
   { label: '바코드', key: 'logistics_barcode' },
   { label: '제품중량', key: 'product_weight_g' },
