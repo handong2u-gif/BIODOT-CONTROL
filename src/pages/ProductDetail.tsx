@@ -19,6 +19,7 @@ interface ProductDetailData {
     wholesale_b: number;
     wholesale_c: number;
     retail_price: number;
+    online_price: number; // Added
     detail_image_url: string | null;
     thumbnail_url: string | null;
     stock_status: string | null;
@@ -364,6 +365,10 @@ const ProductDetail = () => {
                                     <div className="p-4 rounded-lg bg-white border border-slate-200">
                                         <span className="text-xs text-slate-500 block mb-1">소비자가</span>
                                         <span className="text-xl font-semibold text-slate-700">{formatMoney(product.retail_price)}</span>
+                                    </div>
+                                    <div className="p-4 rounded-lg bg-blue-50/50 border border-blue-100">
+                                        <span className="text-xs text-blue-600 font-semibold block mb-1">온라인 판매가</span>
+                                        <span className="text-xl font-bold text-blue-800">{formatMoney(product.online_price)}</span>
                                     </div>
                                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
                                         <span className="text-xs text-slate-400 block mb-1">도매가 B</span>
