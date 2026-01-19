@@ -165,6 +165,7 @@ function syncAllRows() {
   if (ui.alert(`총 ${lastRow - 2}건을 업로드하시겠습니까?`, ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
 
   let successCount = 0, failCount = 0;
+  let lastError = "";
   
   // 2행에서 DB Header(Key)를 읽어옵니다.
   const headers = sheet.getRange(2, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -180,15 +181,21 @@ function syncAllRows() {
       if (result.success) successCount++;
       else {
         failCount++;
+        lastError = result.error;
         console.error(`Row ${i + 3} fail: ${result.error}`);
       }
     } catch (e) {
       failCount++;
+      lastError = e.message;
       console.error(`Row ${i + 3} error: ${e.message}`);
     }
     if (i % 10 === 0) ss.toast(`${i + 1} / ${allData.length} ...`);
   }
-  ui.alert(`완료!\n성공: ${successCount}건\n실패: ${failCount}건`);
+  if (failCount > 0) {
+    ui.alert(`⚠️ 완료 (일부 실패)\n성공: ${successCount}건\n실패: ${failCount}건\n\n[마지막 오류 내용]\n${lastError}`);
+  } else {
+    ui.alert(`✅ 완료!\n성공: ${successCount}건\n실패: ${failCount}건`);
+  }
 }
 
 function processRow(sheet, row, showAlert) {
