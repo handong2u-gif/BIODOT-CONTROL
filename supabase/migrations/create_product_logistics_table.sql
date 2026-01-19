@@ -8,7 +8,12 @@ CREATE TABLE IF NOT EXISTS public.product_logistics_specs (
     carton_depth_mm NUMERIC,
     carton_height_mm NUMERIC,
     qty_per_carton INTEGER,
-    qty_per_pallet INTEGER,
+    product_depth_mm NUMERIC,
+    product_height_mm NUMERIC,
+    product_weight_g NUMERIC,
+    units_per_carton INTEGER, -- Replaced qty_per_carton to match code usage
+    cartons_per_pallet INTEGER, -- Replaced qty_per_pallet
+    logistics_barcode TEXT, -- 바코드 추가
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

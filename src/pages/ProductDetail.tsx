@@ -55,6 +55,7 @@ interface LogisticsSpecs {
     carton_height_mm: number | null;
     units_per_carton: number | null;
     cartons_per_pallet: number | null;
+    logistics_barcode: string | null;
 }
 
 // ... internal implementation ...
@@ -308,15 +309,10 @@ const ProductDetail = () => {
                                 </span>
                             </div>
                             <div>
-                                <span className="text-slate-500 block text-xs mb-1">유통기한</span>
+                                <span className="text-slate-500 block text-xs mb-1">소비기한</span>
                                 <span className="font-medium">{product.expiry_date || '-'}</span>
                             </div>
-                            <div>
-                                <span className="text-slate-500 block text-xs mb-1">입고일 (등록일)</span>
-                                <span className="font-medium text-slate-600">
-                                    {product.created_at ? new Date(product.created_at).toLocaleDateString() : '-'}
-                                </span>
-                            </div>
+
                             <div>
                                 <span className="text-slate-500 block text-xs mb-1">원산지</span>
                                 <span className="font-medium text-slate-600 flex items-center gap-1">
@@ -533,6 +529,12 @@ const ProductDetail = () => {
                                         </CardHeader>
                                         <CardContent>
                                             <div className="grid grid-cols-2 gap-4 text-sm">
+                                                <div>
+                                                    <span className="block text-slate-500 text-xs mb-1">바코드 (Barcode)</span>
+                                                    <span className="font-medium font-mono text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                                                        {logistics.logistics_barcode || '-'}
+                                                    </span>
+                                                </div>
                                                 <div>
                                                     <span className="block text-slate-500 text-xs mb-1">단위 중량 (Unit Weight)</span>
                                                     <span className="font-medium">{logistics.product_weight_g ? `${logistics.product_weight_g} g` : '-'}</span>
