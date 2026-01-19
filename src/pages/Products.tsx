@@ -38,6 +38,7 @@ interface ProductData {
   wholesale_b: number;
   wholesale_c: number;
   retail_price: number;
+  online_price: number; // Added
   cost_blind: number;
   expiry_date: string | null;
   inbound_date: string | null;
@@ -262,25 +263,22 @@ const Products = () => {
 
                       {activeTab === 'biodot-works' && <th className="px-4 py-3 text-center hidden md:table-cell">태그</th>}
 
-                      <th className="px-4 py-3 text-right text-emerald-600">
-                        도매가 A
-                        {activeTab !== 'biodot' && (
-                          <span className="block text-[10px] font-normal opacity-80">위탁가(배송비별도)</span>
-                        )}
-                      </th>
-                      {/* Removed Columns as per user request to simplify? No, kept as per "config product_list" but maybe hide others? 
-                          User specifically asked for: thumbnail_url, product_name, stock_status, price_wholesale_a, tags. 
-                          I will keep others but ensure these are prominent. 
-                      */}
-                      {activeTab === 'biodot-works' && (
-                        <th className="px-4 py-3 text-right hidden lg:table-cell">
-                          도매가 B
+                      {activeTab === 'biodot' ? (
+                        /* RAW MATERIALS: Show Supply Price (Wholesale A) */
+                        <th className="px-4 py-3 text-right text-emerald-600">
+                          공급가
                         </th>
+                      ) : (
+                        /* FINISHED GOODS: Show Retail & Online Price */
+                        <>
+                          <th className="px-4 py-3 text-right text-slate-600 hidden lg:table-cell">
+                            소비자가
+                          </th>
+                          <th className="px-4 py-3 text-right text-blue-600">
+                            온라인 판매가
+                          </th>
+                        </>
                       )}
-
-                      <th className="px-4 py-3 text-right hidden lg:table-cell">
-                        {activeTab === 'biodot' ? "한의원 공급가" : "소비자가"}
-                      </th>
                       {showCost && <th className="px-4 py-3 text-right text-red-500 bg-red-50/50">원가</th>}
                       {/* <th className="px-4 py-3 text-center hidden md:table-cell">유효기간</th> */}
                       {isAdmin && <th className="px-4 py-3 w-[50px]"></th>}
@@ -341,17 +339,22 @@ const Products = () => {
                           </td>
                         )}
 
-                        <td className="px-4 py-3 text-right font-medium text-emerald-700">
-                          {formatMoney(item.wholesale_a)}
-                        </td>
-                        {activeTab === 'biodot-works' && (
-                          <td className="px-4 py-3 text-right text-slate-600 hidden lg:table-cell">
-                            {formatMoney(item.wholesale_b)}
+                        {activeTab === 'biodot' ? (
+                          /* RAW MATERIALS */
+                          <td className="px-4 py-3 text-right font-medium text-emerald-700">
+                            {formatMoney(item.wholesale_a)}
                           </td>
+                        ) : (
+                          /* FINISHED GOODS */
+                          <>
+                            <td className="px-4 py-3 text-right text-slate-600 hidden lg:table-cell">
+                              {formatMoney(item.retail_price)}
+                            </td>
+                            <td className="px-4 py-3 text-right font-bold text-blue-600">
+                              {formatMoney(item.online_price)}
+                            </td>
+                          </>
                         )}
-                        <td className="px-4 py-3 text-right text-slate-600 hidden lg:table-cell">
-                          {formatMoney(item.retail_price)}
-                        </td>
                         {showCost && (
                           <td className="px-4 py-3 text-right font-medium text-red-600 bg-red-50/30">
                             {formatMoney(item.cost_blind)}
@@ -416,8 +419,10 @@ const Products = () => {
 
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between items-center bg-slate-50 p-2 rounded">
-                        <span className="text-slate-500 font-medium">{activeTab === 'biodot' ? '공급가' : '도매가 A'}</span>
-                        <span className="font-bold text-emerald-700 text-base">{formatMoney(item.wholesale_a)}</span>
+                        <span className="text-slate-500 font-medium">{activeTab === 'biodot' ? '공급가' : '온라인가'}</span>
+                        <span className={`font-bold text-base ${activeTab === 'biodot' ? 'text-emerald-700' : 'text-blue-600'}`}>
+                          {formatMoney(activeTab === 'biodot' ? item.wholesale_a : item.online_price)}
+                        </span>
                       </div>
                     </div>
                   </CardContent>
