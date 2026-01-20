@@ -49,6 +49,7 @@ export function CsvUploadButton({ tableName, onUploadComplete }: CsvUploadButton
                         '도매가B': 'wholesale_b', '도매가 B': 'wholesale_b',
                         '도매가C': 'wholesale_c', '도매가 C': 'wholesale_c',
                         '소비자가': 'retail_price', '할인가': 'retail_price',
+                        '온라인가': 'online_price', '온라인판매가': 'online_price', '판매가': 'online_price',
                         '원가': 'cost_blind', 'Cost': 'cost_blind',
                         '유통기한': 'expiry_date', '유효기간': 'expiry_date', '소비기한': 'expiry_date',
                         '입고일': 'inbound_date',
@@ -93,11 +94,16 @@ export function CsvUploadButton({ tableName, onUploadComplete }: CsvUploadButton
                             // 값 정제 (쉼표 제거, 빈 문자열 null 처리)
                             if (typeof value === 'string') {
                                 value = value.trim();
-                                if (['supply_price', 'wholesale_a', 'wholesale_b', 'wholesale_c', 'retail_price', 'cost_blind',
-                                    'product_weight_g', 'carton_weight_kg', 'carton_width_mm', 'carton_depth_mm', 'carton_height_mm',
-                                    'units_per_carton', 'cartons_per_pallet'].some(k =>
-                                        trimmedKey.includes(k) || (tableName === 'finished_goods' && logisticsMapping[trimmedKey])
-                                    )) {
+
+                                // 숫자 변환 대상인지 확인 (한글 헤더가 wholesale_a 등으로 매핑될 것을 고려)
+                                const numericColumns = ['price', 'cost', 'wholesale', 'weight', 'width', 'depth', 'height', 'units', 'cartons', 'qty'];
+
+                                // 현재 키가 숫자형 컬럼에 해당하거나 매핑될 예정인지 확인
+                                const isNumeric = numericColumns.some(nc => trimmedKey.toLowerCase().includes(nc)) ||
+                                    (tableName === 'finished_goods' && finishedGoodsMapping[trimmedKey] && numericColumns.some(nc => finishedGoodsMapping[trimmedKey].includes(nc))) ||
+                                    (tableName === 'finished_goods' && logisticsMapping[trimmedKey] && numericColumns.some(nc => logisticsMapping[trimmedKey].includes(nc)));
+
+                                if (isNumeric) {
                                     value = value.replace(/,/g, '');
                                     // 숫자로 변환 가능한 경우 변환
                                     if (!isNaN(Number(value)) && value !== '') value = Number(value);
@@ -112,8 +118,15 @@ export function CsvUploadButton({ tableName, onUploadComplete }: CsvUploadButton
                                 cleanMainRow[mainTargetKey] = value;
                             }
                             else if (tableName === 'finished_goods') {
-                                if (finishedGoodsMapping[trimmedKey]) {
-                                    mainTargetKey = finishedGoodsMapping[trimmedKey];
+                                // Update mapping with missing keys
+                                const extendedMapping: { [key: string]: string } = {
+                                    ...finishedGoodsMapping,
+                                    '원산지': 'origin_country',
+                                    '연출사진': 'detail_image_url'
+                                };
+
+                                if (extendedMapping[trimmedKey]) {
+                                    mainTargetKey = extendedMapping[trimmedKey];
                                     // 태그 처리: 쉼표로 구분된 문자열을 배열로 변환
                                     if (mainTargetKey === 'tags' && typeof value === 'string') {
                                         cleanMainRow[mainTargetKey] = value.split(',').map(t => t.trim());
@@ -121,8 +134,10 @@ export function CsvUploadButton({ tableName, onUploadComplete }: CsvUploadButton
                                         cleanMainRow[mainTargetKey] = value;
                                     }
                                 } else if (!logisticsMapping[trimmedKey]) {
-                                    // 매핑에 없지만 영어 컬럼명이 일치하는 경우 그대로 사용
-                                    cleanMainRow[mainTargetKey] = value;
+                                    // 매핑에 없지만 영문 컬럼명인(ASCII) 경우에만 통과시킴 (한글 헤더가 그대로 들어가는 것 방지)
+                                    if (/^[a-z_][a-z0-9_]*$/.test(trimmedKey)) {
+                                        cleanMainRow[mainTargetKey] = value;
+                                    }
                                 }
 
                                 // B. Logistics Table Mapping (Only for finished_goods)
@@ -162,32 +177,41 @@ export function CsvUploadButton({ tableName, onUploadComplete }: CsvUploadButton
                         // 3-1. 제품 정보 Upsert (product_name 기준 매칭이 어려우니 Upsert시 conflict 낼 컬럼이 필요함.
                         // 보통은 id가 있어야 함. 여기서는 순차적으로 하나씩 처리하며 매칭 시도)
 
+                        let lastError = "";
                         let successCount = 0;
 
                         // 배치 처리보다는 안전하게 하나씩 처리 (관계형 데이터 연결을 위해)
                         for (const row of mainDataRows) {
-                            // 같은 이름의 제품이 있는지 확인
-                            const { data: existing } = await (supabase as any)
+                            // 같은 이름의 제품이 있는지 확인 (중복이 있어도 에러 안 나게 limit(1) 사용)
+                            const { data: existingList } = await (supabase as any)
                                 .from('finished_goods')
                                 .select('id')
                                 .eq('product_name', row.product_name)
-                                .maybeSingle();
+                                .limit(1);
+
+                            const existing = existingList && existingList.length > 0 ? existingList[0] : null;
 
                             let productId = existing?.id;
                             let processedRow = { ...row };
 
-                            // id가 있으면 업데이트, 없으면 새로 생성
+                            // id가 있으면 업데이트(기존 ID 유지), 없으면 새로 생성
                             if (productId) processedRow.id = productId;
-                            else delete processedRow.id; // 혹시 undefined id가 들어가지 않게
+                            else delete processedRow.id;
 
                             const { data: savedProduct, error: prodError } = await (supabase as any)
                                 .from('finished_goods')
                                 .upsert(processedRow)
                                 .select()
-                                .single();
+                                .maybeSingle(); // upsert 직후에는 하나만 반환되므로 maybeSingle/single 안전
 
                             if (prodError) {
                                 console.error(`Failed to save product ${row.product_name}:`, prodError);
+                                lastError = prodError.message || prodError.details || "알 수 없는 DB 오류";
+                                continue;
+                            }
+
+                            if (!savedProduct) {
+                                lastError = "저장 후 반환된 데이터가 없습니다.";
                                 continue;
                             }
 
@@ -199,12 +223,14 @@ export function CsvUploadButton({ tableName, onUploadComplete }: CsvUploadButton
                             if (logData && productId) {
                                 delete logData.temp_product_name; // 임시 키 제거
 
-                                // 기존 스펙 확인
-                                const { data: existingSpec } = await (supabase as any)
+                                // 로직스 테이블도 중복 방지 조회
+                                const { data: existingSpecList } = await (supabase as any)
                                     .from('product_logistics_specs')
                                     .select('id')
                                     .eq('product_id', productId)
-                                    .maybeSingle();
+                                    .limit(1);
+
+                                const existingSpec = existingSpecList && existingSpecList.length > 0 ? existingSpecList[0] : null;
 
                                 const specPayload = { ...logData, product_id: productId };
                                 if (existingSpec) specPayload.id = existingSpec.id;
@@ -216,15 +242,19 @@ export function CsvUploadButton({ tableName, onUploadComplete }: CsvUploadButton
                         }
 
                         if (successCount < mainDataRows.length) {
-                            toast.warning(`${mainDataRows.length}개 중 ${successCount}개만 성공했습니다.`);
+                            if (successCount === 0) {
+                                toast.error(`전체 실패: ${lastError}`);
+                            } else {
+                                toast.warning(`${mainDataRows.length}개 중 ${successCount}개만 성공. (마지막 에러: ${lastError})`);
+                            }
+                        } else {
+                            toast.success(`${successCount}건 처리 완료!`);
                         }
+                        onUploadComplete();
                     }
-
-                    toast.success(`${rows.length}건의 데이터 처리 완료.`);
-                    onUploadComplete();
                 } catch (error: any) {
                     console.error("Upload failed:", error);
-                    toast.error(`업로드 실패: ${error.message || "알 수 없는 오류"}`);
+                    toast.error(`업로드 로직 오류: ${error.message}`);
                 } finally {
                     setIsUploading(false);
                     if (fileInputRef.current) fileInputRef.current.value = '';

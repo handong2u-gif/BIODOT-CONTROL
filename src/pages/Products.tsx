@@ -27,6 +27,24 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableProductRow } from "@/components/products/SortableProductRow";
 
 // Matches DB Schema - Updated with detail_image_url
 interface ProductData {
@@ -61,6 +79,7 @@ interface ProductData {
   competitor_comp: string | null;
   memo: string | null;
   created_at: string;
+  sort_order: number | null; // Added for drag and drop
 }
 
 // Import ProductImageManager (Assume it's created)
@@ -80,6 +99,13 @@ const Products = () => {
   // Admin Mode State (Simple Toggle for now)
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Sort Configuration
+  interface SortConfig {
+    key: keyof ProductData;
+    direction: 'asc' | 'desc';
+  }
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+
   const fetchProducts = async (currentTab: string) => {
     setLoading(true);
     // setProducts([]); // Removed to allow smooth info update
@@ -89,7 +115,8 @@ const Products = () => {
       const { data, error } = await (supabase as any)
         .from(tableName)
         .select('*')
-        .order('id', { ascending: true }); // Reverting to id/created_at as updated_at might not exist yet
+        .order('sort_order', { ascending: true }) // Order by user defined sort order
+        .order('id', { ascending: true }); // Fallback
 
       if (error) {
         console.warn(`Error fetching ${tableName}:`, error);
@@ -108,6 +135,7 @@ const Products = () => {
   // Fetch when tab changes
   useEffect(() => {
     setProducts([]);
+    setSortConfig(null);
     fetchProducts(activeTab);
   }, [activeTab]);
 
@@ -124,6 +152,86 @@ const Products = () => {
       toast.info("관리자 모드가 해제되었습니다.");
     }
   };
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      const oldIndex = filteredProducts.findIndex((item) => item.id === active.id);
+      const newIndex = filteredProducts.findIndex((item) => item.id === over?.id);
+
+      // Calculate new order based on current filtered list
+      const newItems = arrayMove(filteredProducts, oldIndex, newIndex);
+
+      // Optimistic Update
+      setFilteredProducts(newItems);
+
+      // If we are looking at the full list (no search, no sort), update the main source too
+      // Only allow reorder saving if NOT sorting
+      if (!searchTerm && !sortConfig) {
+        setProducts(newItems);
+
+        // Sync to Server
+        const updates = newItems.map((item, index) => ({
+          id: item.id,
+          sort_order: index + 1,
+          updated_at: new Date().toISOString()
+        }));
+
+        (async () => {
+          const { error } = await (supabase as any)
+            .from('finished_goods')
+            .upsert(updates.map(u => ({ id: u.id, sort_order: u.sort_order })));
+
+          if (error) {
+            console.error('Failed to update sort order', error);
+            toast.error('순서 저장 실패: 서버 오류');
+          }
+        })();
+      }
+    }
+  };
+
+  const handleSort = (key: keyof ProductData) => {
+    setSortConfig((current) => {
+      if (current?.key === key) {
+        if (current.direction === 'asc') return { key, direction: 'desc' };
+        return null; // Toggle off if already desc
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    if (!sortConfig) return 0;
+    const { key, direction } = sortConfig;
+    const modifier = direction === 'asc' ? 1 : -1;
+
+    // Handle nulls
+    const valA = a[key] ?? '';
+    const valB = b[key] ?? '';
+
+    if (valA < valB) return -1 * modifier;
+    if (valA > valB) return 1 * modifier;
+    return 0;
+  });
 
   return (
     <div className="space-y-6">
@@ -251,133 +359,155 @@ const Products = () => {
             // --- LIST VIEW ---
             <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b">
-                    <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      <th className="px-4 py-3 min-w-[200px]">제품명 / 규격</th>
-                      {activeTab === 'biodot' ? (
-                        <th className="px-4 py-3 text-center hidden md:table-cell">원산지</th>
-                      ) : (
-                        <th className="px-4 py-3 text-center">상태</th>
-                      )}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b">
+                      <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        {/* Disable Drag if Sorting is active */}
+                        {isAdmin && activeTab === 'biodot-works' && !searchTerm && !sortConfig && <th className="w-[40px]"></th>}
 
-                      {activeTab === 'biodot-works' && <th className="px-4 py-3 text-center hidden md:table-cell">태그</th>}
-
-                      {activeTab === 'biodot' ? (
-                        /* RAW MATERIALS: Show Supply Price (Wholesale A) */
-                        <th className="px-4 py-3 text-right text-emerald-600">
-                          공급가
-                        </th>
-                      ) : (
-                        /* FINISHED GOODS: Show Retail & Online Price */
-                        <>
-                          <th className="px-4 py-3 text-right text-slate-600 hidden lg:table-cell">
-                            소비자가
-                          </th>
-                          <th className="px-4 py-3 text-right text-blue-600">
-                            온라인 판매가
-                          </th>
-                        </>
-                      )}
-                      {showCost && <th className="px-4 py-3 text-right text-red-500 bg-red-50/50">원가</th>}
-                      {/* <th className="px-4 py-3 text-center hidden md:table-cell">유효기간</th> */}
-                      {isAdmin && <th className="px-4 py-3 w-[50px]"></th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredProducts.map((item) => (
-                      <tr
-                        key={item.id}
-                        className="hover:bg-slate-50/80 transition-colors group text-slate-700 cursor-pointer"
-                        onClick={() => window.location.href = `/products/${item.id}`} // Simple navigation for now
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex items-start gap-3">
-                            <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                              <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-emerald-500 hover:ring-offset-1 transition-all">
-                                <ProductImageManager
-                                  product={item}
-                                  tableName={activeTab === 'biodot' ? 'raw_materials' : 'finished_goods'}
-                                  isAdmin={isAdmin}
-                                  onUpdate={() => fetchProducts(activeTab)}
-                                  trigger={
-                                    item.thumbnail_url ? (
-                                      <img src={item.thumbnail_url} alt={item.product_name} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <ImageIcon className="w-5 h-5 text-slate-300" />
-                                    )
-                                  }
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <div className="font-medium text-slate-900 line-clamp-2 hover:text-blue-600 transition-colors">{item.product_name}</div>
-                              {item.spec && <div className="text-xs text-slate-500 mt-0.5">{item.spec}</div>}
-                            </div>
+                        <th className="px-4 py-3 min-w-[200px] cursor-pointer hover:text-slate-700" onClick={() => handleSort('product_name')}>
+                          <div className="flex items-center gap-1">
+                            제품명 / 규격
+                            {sortConfig?.key === 'product_name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                           </div>
-                        </td>
+                        </th>
 
                         {activeTab === 'biodot' ? (
-                          <td className="px-4 py-3 text-center text-slate-600 text-sm hidden md:table-cell">
-                            {item.origin_country || '-'}
-                          </td>
+                          <th className="px-4 py-3 text-center hidden md:table-cell cursor-pointer hover:text-slate-700" onClick={() => handleSort('origin_country')}>
+                            원산지 {sortConfig?.key === 'origin_country' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
                         ) : (
-                          <td className="px-4 py-3 text-center">
-                            {item.stock_status === 'out_of_stock' ? (
-                              <Badge variant="destructive" className="text-[10px]">품절</Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">판매중</Badge>
-                            )}
-                          </td>
+                          <th className="px-4 py-3 text-center cursor-pointer hover:text-slate-700" onClick={() => handleSort('stock_status')}>
+                            상태 {sortConfig?.key === 'stock_status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
                         )}
 
-                        {activeTab === 'biodot-works' && (
-                          <td className="px-4 py-3 text-center hidden md:table-cell">
-                            <div className="flex flex-wrap gap-1 justify-center max-w-[150px] mx-auto">
-                              {item.tags?.map(t => <Badge key={t} variant="secondary" className="text-[10px] px-1 py-0">{t}</Badge>)}
-                            </div>
-                          </td>
-                        )}
+                        {activeTab === 'biodot-works' && <th className="px-4 py-3 text-center hidden md:table-cell">태그</th>}
 
                         {activeTab === 'biodot' ? (
-                          /* RAW MATERIALS */
-                          <td className="px-4 py-3 text-right font-medium text-emerald-700">
-                            {formatMoney(item.wholesale_a)}
-                          </td>
+                          <th className="px-4 py-3 text-right text-emerald-600 cursor-pointer hover:text-emerald-800" onClick={() => handleSort('wholesale_a')}>
+                            공급가 {sortConfig?.key === 'wholesale_a' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
                         ) : (
-                          /* FINISHED GOODS */
                           <>
-                            <td className="px-4 py-3 text-right text-slate-600 hidden lg:table-cell">
-                              {formatMoney(item.retail_price)}
-                            </td>
-                            <td className="px-4 py-3 text-right font-bold text-blue-600">
-                              {formatMoney(item.online_price)}
-                            </td>
+                            <th className="px-4 py-3 text-right text-slate-600 hidden lg:table-cell cursor-pointer hover:text-slate-800" onClick={() => handleSort('retail_price')}>
+                              소비자가 {sortConfig?.key === 'retail_price' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th className="px-4 py-3 text-right text-blue-600 cursor-pointer hover:text-blue-800" onClick={() => handleSort('online_price')}>
+                              온라인 판매가 {sortConfig?.key === 'online_price' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
                           </>
                         )}
-                        {showCost && (
-                          <td className="px-4 py-3 text-right font-medium text-red-600 bg-red-50/30">
-                            {formatMoney(item.cost_blind)}
-                          </td>
-                        )}
-
-                        {isAdmin && (
-                          <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </td>
-                        )}
+                        {showCost && <th className="px-4 py-3 text-right text-red-500 bg-red-50/50">원가</th>}
+                        {isAdmin && <th className="px-4 py-3 w-[50px]"></th>}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      <SortableContext
+                        items={sortedProducts.map(p => p.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {sortedProducts.map((item) => (
+                          <SortableProductRow
+                            key={item.id}
+                            id={item.id}
+                            isAdmin={isAdmin && activeTab === 'biodot-works' && !searchTerm && !sortConfig}
+                            onClick={() => window.location.href = `/products/${item.id}`}
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-start gap-3">
+                                <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-emerald-500 hover:ring-offset-1 transition-all">
+                                    <ProductImageManager
+                                      product={item}
+                                      tableName={activeTab === 'biodot' ? 'raw_materials' : 'finished_goods'}
+                                      isAdmin={isAdmin}
+                                      onUpdate={() => fetchProducts(activeTab)}
+                                      trigger={
+                                        item.thumbnail_url ? (
+                                          <img src={item.thumbnail_url} alt={item.product_name} className="w-full h-full object-cover" />
+                                        ) : (
+                                          <ImageIcon className="w-5 h-5 text-slate-300" />
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="font-medium text-slate-900 line-clamp-2 hover:text-blue-600 transition-colors">{item.product_name}</div>
+                                  {item.spec && <div className="text-xs text-slate-500 mt-0.5">{item.spec}</div>}
+                                </div>
+                              </div>
+                            </td>
+
+                            {activeTab === 'biodot' ? (
+                              <td className="px-4 py-3 text-center text-slate-600 text-sm hidden md:table-cell">
+                                {item.origin_country || '-'}
+                              </td>
+                            ) : (
+                              <td className="px-4 py-3 text-center">
+                                {item.stock_status === 'out_of_stock' ? (
+                                  <Badge variant="destructive" className="text-[10px]">품절</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">판매중</Badge>
+                                )}
+                              </td>
+                            )}
+
+                            {activeTab === 'biodot-works' && (
+                              <td className="px-4 py-3 text-center hidden md:table-cell">
+                                <div className="flex flex-wrap gap-1 justify-center max-w-[150px] mx-auto">
+                                  {item.tags?.map(t => <Badge key={t} variant="secondary" className="text-[10px] px-1 py-0">{t}</Badge>)}
+                                </div>
+                              </td>
+                            )}
+
+                            {activeTab === 'biodot' ? (
+                              /* RAW MATERIALS */
+                              <td className="px-4 py-3 text-right font-medium text-emerald-700">
+                                {formatMoney(item.wholesale_a)}
+                              </td>
+                            ) : (
+                              /* FINISHED GOODS */
+                              <>
+                                <td className="px-4 py-3 text-right text-slate-600 hidden lg:table-cell">
+                                  {formatMoney(item.retail_price)}
+                                </td>
+                                <td className="px-4 py-3 text-right font-bold text-blue-600">
+                                  {formatMoney(item.online_price)}
+                                </td>
+                              </>
+                            )}
+                            {showCost && (
+                              <td className="px-4 py-3 text-right font-medium text-red-600 bg-red-50/30">
+                                {formatMoney(item.cost_blind)}
+                              </td>
+                            )}
+
+                            {isAdmin && (
+                              <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </td>
+                            )}
+                          </SortableProductRow>
+                        ))}
+                      </SortableContext>
+                    </tbody>
+                  </table>
+                </DndContext>
               </div>
             </div>
           ) : (
             // --- GRID VIEW ---
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredProducts.map((item) => (
+              {sortedProducts.map((item) => (
                 <Card
                   key={item.id}
                   className="hover:shadow-md transition-shadow group overflow-hidden border-slate-200 cursor-pointer"

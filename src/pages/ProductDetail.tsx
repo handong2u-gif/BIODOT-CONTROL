@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Package, MapPin, CheckCircle2, AlertCircle, FileText, Download, Truck, Box } from "lucide-react";
+import { ArrowLeft, Package, MapPin, CheckCircle2, AlertCircle, FileText, Download, Truck, Box, Beaker } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,6 +30,7 @@ interface ProductDetailData {
     expiry_date: string | null;
     created_at: string;
     memo: string | null;
+    ingredients: string | null;
 }
 
 interface ProductDocument {
@@ -75,6 +76,7 @@ const ProductDetail = () => {
     const [logistics, setLogistics] = useState<LogisticsSpecs | null>(null);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+    const [showIngredients, setShowIngredients] = useState(false);
 
     const refreshDocuments = async () => {
         if (!id) return;
@@ -311,7 +313,7 @@ const ProductDetail = () => {
                             </div>
                             <div>
                                 <span className="text-slate-500 block text-xs mb-1">소비기한</span>
-                                <span className="font-medium">{product.expiry_date || '-'}</span>
+                                <span className="font-medium">{product.expiry_date ? product.expiry_date.split('T')[0] : '-'}</span>
                             </div>
 
                             <div>
@@ -423,6 +425,30 @@ const ProductDetail = () => {
                                         </ul>
                                     ) : (
                                         <p className="text-sm text-slate-400 italic">등록된 특징이 없습니다.</p>
+                                    )}
+                                </div>
+
+                                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100 transition-all">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                                            <Beaker className="w-4 h-4 text-slate-500" /> 원재료 및 함량
+                                        </h3>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setShowIngredients(!showIngredients)}
+                                            className="h-6 text-xs text-slate-500 hover:text-slate-900"
+                                        >
+                                            {showIngredients ? '숨기기' : '보기'}
+                                        </Button>
+                                    </div>
+
+                                    {showIngredients && (
+                                        <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                                            <p className="text-sm text-slate-700 leading-relaxed bg-white p-3 rounded border border-slate-100 whitespace-pre-wrap">
+                                                {product.ingredients || '등록된 원재료 정보가 없습니다.'}
+                                            </p>
+                                        </div>
                                     )}
                                 </div>
 
