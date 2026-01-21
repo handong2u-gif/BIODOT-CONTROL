@@ -186,7 +186,7 @@ const RawMaterials = () => {
             toast.success("저장되었습니다.");
         } catch (err: any) {
             console.error('Update error:', err);
-            toast.error("저장 실패");
+            toast.error(`저장 실패: ${err.message}`);
         }
     };
 
