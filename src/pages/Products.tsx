@@ -188,21 +188,37 @@ const Products = () => {
       if (!searchTerm && !sortConfig) {
         setProducts(newItems);
 
-        // Sync to Server
+        // Sync to Server using Promise.all for individual updates to avoid Upsert issues
         const updates = newItems.map((item, index) => ({
           id: item.id,
           sort_order: index + 1,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString() // Keep the timestamp updated
         }));
 
         (async () => {
-          const { error } = await (supabase as any)
-            .from('finished_goods')
-            .upsert(updates.map(u => ({ id: u.id, sort_order: u.sort_order })));
+          try {
+            // Processing updates using RPC for guaranteed permissions
+            const promises = updates.map(u =>
+              supabase.rpc('update_product_sort_order', {
+                p_id: u.id,
+                p_sort_order: u.sort_order
+              })
+            );
 
-          if (error) {
-            console.error('Failed to update sort order', error);
-            toast.error('순서 저장 실패: 서버 오류');
+            const results = await Promise.all(promises);
+
+            // Check for errors
+            const errors = results.filter(r => r.error).map(r => r.error);
+
+            if (errors.length > 0) {
+              console.error('Failed to update sort order (RPC)', errors);
+              toast.error(`순서 저장 오류(RPC): ${errors[0]?.message || '알 수 없는 오류'}`);
+            } else {
+              toast.success("순서가 저장되었습니다.");
+            }
+          } catch (err: any) {
+            console.error('Exception during sort order update', err);
+            toast.error(`순서 저장 실패 (예외): ${err.message || '네트워크 오류'}`);
           }
         })();
       }

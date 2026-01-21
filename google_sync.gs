@@ -1,6 +1,6 @@
 /**
  * Google Sheets to Supabase Sync
- * Updated: 2024-01-20 (Fixed Save Error - Restored Full Code)
+ * Updated: 2024-01-20 (Final Robust Version: Keywords + Auto-Append + Debug)
  */
 
 var SUPABASE_URL = 'https://qfvmqotkhjkewdwzibyb.supabase.co';
@@ -22,6 +22,8 @@ var HEADER_MAP = {
   '썸네일': 'thumbnail_url', '이미지': 'thumbnail_url',
   '상세이미지': 'detail_image_url', '연출사진': 'detail_image_url',
   '태그': 'tags', '키워드': 'tags',
+  
+  // 원재료 (키워드 매칭은 아래 로직에서 처리하지만 맵에도 추가)
   '원재료': 'ingredients', '전성분': 'ingredients', 'Ingredients': 'ingredients', '함량': 'ingredients',
   '원재료명': 'ingredients', '배합비율': 'ingredients', '배합비율(%)': 'ingredients', '원료및함량': 'ingredients',
   '원재료및함량': 'ingredients', '원재료 및 함량': 'ingredients', '원재료 및 배합비율': 'ingredients',
@@ -43,19 +45,19 @@ var HEADER_MAP = {
   '재고상태': 'stock_status', '상태': 'stock_status', '재고': 'stock_status',
   '순서': 'sort_order', '정렬': 'sort_order', '노출순서': 'sort_order', 'No': 'sort_order', 'No.': 'sort_order', '번호': 'sort_order',
 
-  // 물류 스펙
+  // 물류 스펙 (한글 명칭 완벽 대응)
   '바코드': 'logistics_barcode', 'Barcode': 'logistics_barcode',
   '단위중량': 'product_weight_g', '제품중량': 'product_weight_g', '중량(g)': 'product_weight_g',
   '카톤중량': 'carton_weight_kg', '박스중량': 'carton_weight_kg', '카톤중량(kg)': 'carton_weight_kg',
   
-  '박스가로': 'carton_width_mm', '카톤가로': 'carton_width_mm',
-  '박스세로': 'carton_depth_mm', '카톤세로': 'carton_depth_mm',
-  '박스높이': 'carton_height_mm', '카톤높이': 'carton_height_mm',
+  '박스가로': 'carton_width_mm', '카톤가로': 'carton_width_mm', '카톤,가로': 'carton_width_mm',
+  '박스세로': 'carton_depth_mm', '카톤세로': 'carton_depth_mm', '카톤,세로': 'carton_depth_mm',
+  '박스높이': 'carton_height_mm', '카톤높이': 'carton_height_mm', '카톤,높이': 'carton_height_mm',
 
-  // 제품 크기 (추가)
-  '제품가로': 'product_width_mm', '단품가로': 'product_width_mm', '가로': 'product_width_mm',
-  '제품세로': 'product_depth_mm', '단품세로': 'product_depth_mm', '세로': 'product_depth_mm', '폭': 'product_depth_mm',
-  '제품높이': 'product_height_mm', '단품높이': 'product_height_mm', '높이': 'product_height_mm',
+  // 제품 크기
+  '제품가로': 'product_width_mm', '단품가로': 'product_width_mm', '가로': 'product_width_mm', '제품 가로': 'product_width_mm',
+  '제품세로': 'product_depth_mm', '단품세로': 'product_depth_mm', '세로': 'product_depth_mm', '폭': 'product_depth_mm', '제품 세로': 'product_depth_mm',
+  '제품높이': 'product_height_mm', '단품높이': 'product_height_mm', '높이': 'product_height_mm', '제품 높이': 'product_height_mm',
 
   '입수': 'units_per_carton', '카톤입수': 'units_per_carton', '박스입수': 'units_per_carton', '입수량': 'units_per_carton',
   '팔레트적재': 'cartons_per_pallet', '파레트': 'cartons_per_pallet'
@@ -81,7 +83,56 @@ function onOpen() {
       .addItem('▶▶ 전체 시트 업로드 (Sheet → DB)', 'syncAllRows')
       .addSeparator()
       .addItem('◀ DB에서 불러오기 (DB → Sheet)', 'fetchFromSupabase')
+      .addSeparator()
+      .addItem('🔍 진단하기 (Debug)', 'debugFetchOneRow')
       .addToUi();
+}
+
+/**
+ * Debug function to check what DB actually returns
+ */
+function debugFetchOneRow() {
+  var ui = SpreadsheetApp.getUi();
+  var sheet = SpreadsheetApp.getActiveSheet();
+  var sheetName = sheet.getName();
+  var tableName = SHEET_CONFIG[sheetName];
+  if (!tableName) tableName = 'finished_goods'; 
+
+  var url = SUPABASE_URL + '/rest/v1/' + tableName + '?select=*,product_logistics_specs(*)&limit=1';
+  var options = {
+    'method': 'get',
+    'headers': {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': 'application/json'
+    },
+    'muteHttpExceptions': true
+  };
+
+  try {
+    var res = UrlFetchApp.fetch(url, options);
+    var content = res.getContentText();
+    var data = JSON.parse(content);
+
+    if (data.length > 0) {
+      var row = data[0];
+      var log = row.product_logistics_specs;
+      var hasLog = (log && log.length > 0) ? 'YES' : 'NO';
+      var logData = hasLog === 'YES' ? JSON.stringify(log[0]) : 'N/A';
+      
+      ui.alert(
+        '✅ DB 연결 성공!\n' +
+        'Table: ' + tableName + '\n' +
+        '첫번째 제품: ' + row.product_name + '\n' +
+        '물류 정보 존재 여부: ' + hasLog + '\n' +
+        '물류 데이터 샘플:\n' + logData
+      );
+    } else {
+      ui.alert('⚠️ DB 연결 성공했으나 데이터가 없습니다.');
+    }
+  } catch (e) {
+    ui.alert('❌ 에러 발생:\n' + e.toString());
+  }
 }
 
 function fetchFromSupabase() {
@@ -91,7 +142,7 @@ function fetchFromSupabase() {
   var ui = SpreadsheetApp.getUi();
 
   if (!tableName) {
-    ui.alert('현재 시트는 동기화 대상이 아닙니다. (완제품 또는 원료 시트에서 실행하세요)');
+    ui.alert('현재 시트는 동기화 대상이 아닙니다.');
     return;
   }
 
@@ -140,47 +191,23 @@ function fetchFromSupabase() {
       return;
     }
 
-    // 2. Prepare Sheet
+    // 2. Prepare Headers (Dynamic Update: Append Missing)
+    var currentHeaders = [];
     var lastCol = sheet.getLastColumn();
-    // Safety check for columns
-    if (lastCol < 1) {
-       ui.alert("시트에 헤더가 없습니다.");
-       return;
+    if (lastCol > 0) {
+        currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
     }
-
-    var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
     
-    // Clear old data (start from row 2)
-    var lastRow = sheet.getLastRow();
-    if (lastRow > 1) {
-      sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
-    }
-
-    // 3. Map Data
-    var outputRows = [];
-    
-    for (var i = 0; i < data.length; i++) {
-      var record = data[i];
-      
-      // Flatten logistics if present
-      if (record.product_logistics_specs && record.product_logistics_specs.length > 0) {
-        var logSpecs = record.product_logistics_specs[0];
-        for (var k in logSpecs) {
-          if (!record.hasOwnProperty(k)) record[k] = logSpecs[k]; 
-        }
-      }
-
-      var row = [];
-      for (var h = 0; h < headers.length; h++) {
-        var headerName = headers[h].toString().trim();
+    // Check known headers
+    var keyToColMap = {};
+    for (var h = 0; h < currentHeaders.length; h++) {
+        var headerName = currentHeaders[h].toString().trim();
         var dbKey = HEADER_MAP[headerName];
         
-        // Logic improved: Fuzzy match with normalize
+        // Robust Matching
         if (!dbKey) {
              var normalized = normalizeHeader(headerName);
              dbKey = HEADER_MAP[normalized];
-             
-             // Try iterating map if direct lookup fails (for complex cases)
              if (!dbKey) {
                  for (var k in HEADER_MAP) {
                      if (normalizeHeader(k) === normalized) {
@@ -189,28 +216,90 @@ function fetchFromSupabase() {
                      }
                  }
              }
+             // Keywords
+             if (!dbKey) {
+                if (normalized.indexOf('원재료') !== -1) dbKey = 'ingredients';
+                else if (normalized.indexOf('카톤') !== -1 && (normalized.indexOf('가로') !== -1 || normalized.indexOf('폭') !== -1)) dbKey = 'carton_width_mm';
+                else if (normalized.indexOf('카톤') !== -1 && (normalized.indexOf('세로') !== -1 || normalized.indexOf('깊이') !== -1)) dbKey = 'carton_depth_mm';
+                else if (normalized.indexOf('카톤') !== -1 && normalized.indexOf('높이') !== -1) dbKey = 'carton_height_mm';
+                else if (normalized.indexOf('제품') !== -1 && (normalized.indexOf('가로') !== -1 || normalized.indexOf('폭') !== -1)) dbKey = 'product_width_mm';
+                else if (normalized.indexOf('제품') !== -1 && (normalized.indexOf('세로') !== -1 || normalized.indexOf('깊이') !== -1)) dbKey = 'product_depth_mm';
+                else if (normalized.indexOf('제품') !== -1 && normalized.indexOf('높이') !== -1) dbKey = 'product_height_mm';
+             }
+        }
+        
+        if (dbKey) {
+            keyToColMap[dbKey] = h;
+        } else {
+            // Also map exact matches (for id, etc)
+            keyToColMap[headerName] = h;
+        }
+    }
+
+    // Detect missing keys
+    var allKeys = {};
+    for (var i = 0; i < data.length; i++) {
+        var rec = data[i];
+        if (rec.product_logistics_specs && rec.product_logistics_specs.length > 0) {
+             var spec = rec.product_logistics_specs[0];
+             for (var k in spec) rec[k] = spec[k]; // Flatten for detection
+        }
+        for (var k in rec) {
+            if (typeof rec[k] !== 'object' || rec[k] === null) allKeys[k] = true;
+        }
+    }
+
+    // Append missing columns
+    var newHeaders = [];
+    var keys = Object.keys(allKeys);
+    for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        if (key === 'product_logistics_specs') continue;
+        if (!keyToColMap.hasOwnProperty(key)) {
+            // If the key is not mapped to any existing column, append it
+            newHeaders.push(key);
+            keyToColMap[key] = currentHeaders.length + newHeaders.length - 1;
+        }
+    }
+
+    if (newHeaders.length > 0) {
+        sheet.getRange(1, currentHeaders.length + 1, 1, newHeaders.length).setValues([newHeaders]);
+        // ui.alert('ℹ️ 새 컬럼 추가됨: ' + newHeaders.join(', '));
+        lastCol += newHeaders.length;
+    }
+
+    // Clear content
+    var lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+        sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+    }
+
+    // 3. Map Data to Rows
+    var outputRows = [];
+    for (var i = 0; i < data.length; i++) {
+        var record = data[i];
+        if (record.product_logistics_specs && record.product_logistics_specs.length > 0) {
+             var spec = record.product_logistics_specs[0];
+             for (var k in spec) record[k] = spec[k];
         }
 
-        var val = "";
-        if (dbKey && record.hasOwnProperty(dbKey)) {
-          val = record[dbKey];
-        }
+        var row = new Array(lastCol).fill("");
+        
+        for (var k in record) {
+            if (keyToColMap.hasOwnProperty(k)) {
+                var colIdx = keyToColMap[k];
+                var val = record[k];
 
-        if (Array.isArray(val)) val = val.join(', ');
-        
-        // Date format YYYY-MM-DD
-        if (typeof val === 'string' && val.length >= 10 && val.charAt(4) === '-' && val.charAt(7) === '-') {
-             if (val.indexOf('T') !== -1) val = val.split('T')[0];
+                if (Array.isArray(val)) val = val.join(', ');
+                if (typeof val === 'string' && val.length >= 10 && val.charAt(4) === '-' && val.charAt(7) === '-') {
+                     if (val.indexOf('T') !== -1) val = val.split('T')[0];
+                }
+                if (val === null || val === undefined) val = "";
+                
+                row[colIdx] = val;
+            }
         }
-        
-        // Ensure values are strings or numbers, explicitly handle null/undefined
-        if (val === null || val === undefined) {
-             val = "";
-        }
-        
-        row.push(val);
-      }
-      outputRows.push(row);
+        outputRows.push(row);
     }
 
     // 4. Write
@@ -218,7 +307,7 @@ function fetchFromSupabase() {
       sheet.getRange(2, 1, outputRows.length, outputRows[0].length).setValues(outputRows);
       ui.alert('✅ 불러오기 완료 (' + outputRows.length + '건)');
     } else {
-      ui.alert('⚠️ 데이터를 가져왔으나 매핑된 열이 없습니다.');
+      ui.alert('⚠️ 데이터를 가져왔으나 컬럼을 매핑할 수 없습니다.');
     }
 
   } catch (e) {
@@ -275,10 +364,7 @@ function syncAllRows() {
 function processRow(sheet, rowIndex) {
   var sheetName = sheet.getName();
   var tableName = SHEET_CONFIG[sheetName];
-
-  if (!tableName) {
-    return { success: false, error: '매핑된 테이블이 없습니다. (시트명: ' + sheetName + ')' };
-  }
+  if (!tableName) return { success: false, error: '매핑된 테이블 없음' };
 
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   var rowData = sheet.getRange(rowIndex, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -288,42 +374,55 @@ function processRow(sheet, rowIndex) {
   var hasLogistics = false;
 
   for (var i = 0; i < headers.length; i++) {
-    var header = headers[i];
-    var rawValue = rowData[i];
-    
-    if (rawValue === "" || rawValue === undefined) continue;
+    var rawHeader = headers[i].toString().trim();
+    var val = rowData[i];
+    if (val === "" || val === undefined) continue;
 
-    var trimmedHeader = header.toString().trim();
-    var dbKey = HEADER_MAP[trimmedHeader];
-    
-    if (!dbKey && /^[a-z_][a-z0-9_]*$/.test(trimmedHeader)) {
-      dbKey = trimmedHeader;
+    // Resolve Key (Keyword Match)
+    var dbKey = HEADER_MAP[rawHeader];
+    if (!dbKey) {
+            var normalized = normalizeHeader(rawHeader);
+            dbKey = HEADER_MAP[normalized];
+            if (!dbKey) {
+                for (var k in HEADER_MAP) {
+                    if (normalizeHeader(k) === normalized) {
+                        dbKey = HEADER_MAP[k];
+                        break;
+                    }
+                }
+            }
+            if (!dbKey) {
+                if (normalized.indexOf('원재료') !== -1) dbKey = 'ingredients';
+                else if (normalized.indexOf('카톤') !== -1 && (normalized.indexOf('가로') !== -1 || normalized.indexOf('폭') !== -1)) dbKey = 'carton_width_mm';
+                else if (normalized.indexOf('카톤') !== -1 && (normalized.indexOf('세로') !== -1 || normalized.indexOf('깊이') !== -1)) dbKey = 'carton_depth_mm';
+                else if (normalized.indexOf('카톤') !== -1 && normalized.indexOf('높이') !== -1) dbKey = 'carton_height_mm';
+                else if (normalized.indexOf('제품') !== -1 && (normalized.indexOf('가로') !== -1 || normalized.indexOf('폭') !== -1)) dbKey = 'product_width_mm';
+                else if (normalized.indexOf('제품') !== -1 && (normalized.indexOf('세로') !== -1 || normalized.indexOf('깊이') !== -1)) dbKey = 'product_depth_mm';
+                else if (normalized.indexOf('제품') !== -1 && normalized.indexOf('높이') !== -1) dbKey = 'product_height_mm';
+            }
     }
+    
+    if (!dbKey) continue;
 
-    if (!dbKey) continue; 
-
-    var value = rawValue;
-    if (typeof value === 'string') {
-        value = value.trim();
-        // Remove commas for number fields
-        if (['price', 'cost', 'wholesale', 'weight', 'width', 'depth', 'height', 'units', 'qty'].some(function(k) { return dbKey.indexOf(k) !== -1; })) {
-            value = value.replace(/,/g, '');
+    // Format
+    if (typeof val === 'string') {
+        val = val.trim();
+        if (['price', 'cost', 'wholesale', 'weight', 'width', 'depth', 'height', 'units', 'qty', 'mm', 'kg', 'g'].some(function(k) { return dbKey.indexOf(k) !== -1; })) {
+            val = val.replace(/,/g, '');
             if (!isNaN(Number(value)) && value !== '') value = Number(value);
         }
     }
 
     if (tableName === 'finished_goods' && LOGISTICS_KEYS.indexOf(dbKey) !== -1) {
-        logisticsPayload[dbKey] = value;
+        logisticsPayload[dbKey] = val;
         hasLogistics = true;
     } else {
-        mainPayload[dbKey] = value;
+        mainPayload[dbKey] = val;
     }
   }
 
-  if (!mainPayload['product_name']) {
-    return { success: false, error: '제품명(product_name)이 없습니다.' };
-  }
-
+  if (!mainPayload['product_name']) return { success: false, error: '제품명 없음' };
+  
   if (mainPayload['tags'] && typeof mainPayload['tags'] === 'string') {
       mainPayload['tags'] = mainPayload['tags'].split(',').map(function(t) { return t.trim(); });
   }
@@ -339,11 +438,10 @@ function processRow(sheet, rowIndex) {
     'muteHttpExceptions': true
   };
 
+  // Upsert Product
   var existingId = null;
-  // Check existence
   var searchUrl = SUPABASE_URL + '/rest/v1/' + tableName + '?product_name=eq.' + encodeURIComponent(mainPayload.product_name) + '&select=id';
   var searchRes = UrlFetchApp.fetch(searchUrl, { headers: options.headers });
-  
   if (searchRes.getResponseCode() === 200) {
       var found = JSON.parse(searchRes.getContentText());
       if (found.length > 0) existingId = found[0].id;
@@ -360,31 +458,31 @@ function processRow(sheet, rowIndex) {
       finalRes = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/' + tableName, options);
   }
 
-  if (finalRes.getResponseCode() >= 300) {
-      return { success: false, error: finalRes.getContentText() };
-  }
+  if (finalRes.getResponseCode() >= 300) return { success: false, error: finalRes.getContentText() };
 
   var resultData = JSON.parse(finalRes.getContentText());
   var productId = resultData[0] ? resultData[0].id : null;
 
+  // Upsert Logistics
   if (hasLogistics && productId) {
       logisticsPayload['product_id'] = productId;
       
       var logSearchRes = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/product_logistics_specs?product_id=eq.' + productId + '&select=id', { headers: options.headers });
+      
       var logMethod = 'post';
       var logUrl = SUPABASE_URL + '/rest/v1/product_logistics_specs';
-      
       if (logSearchRes.getResponseCode() === 200 && JSON.parse(logSearchRes.getContentText()).length > 0) {
           logMethod = 'patch';
           logUrl += '?product_id=eq.' + productId;
       }
-
-      UrlFetchApp.fetch(logUrl, {
+      
+      var logRes = UrlFetchApp.fetch(logUrl, {
           method: logMethod,
           headers: options.headers,
           payload: JSON.stringify(logisticsPayload),
           muteHttpExceptions: true
       });
+      if (logRes.getResponseCode() >= 300) return { success: false, error: 'Logistics Fail: ' + logRes.getContentText() };
   }
 
   return { success: true };
