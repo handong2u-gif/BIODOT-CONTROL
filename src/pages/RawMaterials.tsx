@@ -38,6 +38,14 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Trash2 } from "lucide-react";
 
 import { SortableProductRow } from "@/components/products/SortableProductRow";
 import { ProductImageManager } from "@/components/products/ProductImageManager";
@@ -195,6 +203,38 @@ const RawMaterials = () => {
         setFilteredProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
     };
 
+    const handleAdd = async () => {
+        try {
+            const { error } = await (supabase as any)
+                .from('raw_materials')
+                .insert([{ product_name: '새 원료', wholesale_a: 0 }]);
+
+            if (error) throw error;
+            toast.success("새 원료가 추가되었습니다.");
+            fetchProducts();
+        } catch (error: any) {
+            console.error(error);
+            toast.error(`추가 실패: ${error.message}`);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm("정말 삭제하시겠습니까?")) return;
+        try {
+            const { error } = await (supabase as any)
+                .from('raw_materials')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            toast.success("삭제되었습니다.");
+            fetchProducts();
+        } catch (error: any) {
+            console.error(error);
+            toast.error(`삭제 실패: ${error.message}`);
+        }
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             {/* HEADER */}
@@ -232,7 +272,7 @@ const RawMaterials = () => {
                                 tableName="raw_materials"
                                 onUploadComplete={fetchProducts}
                             />
-                            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                            <Button onClick={handleAdd} className="bg-emerald-600 hover:bg-emerald-700 text-white">
                                 <Plus className="w-4 h-4 mr-2" /> 추가
                             </Button>
                         </>
@@ -425,9 +465,19 @@ const RawMaterials = () => {
                                                 )}
                                                 {isAdmin && (
                                                     <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                                                            <MoreHorizontal className="w-4 h-4" />
-                                                        </Button>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                                                                    <MoreHorizontal className="w-4 h-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuLabel>작업</DropdownMenuLabel>
+                                                                <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer">
+                                                                    <Trash2 className="w-4 h-4 mr-2" /> 삭제
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
                                                     </td>
                                                 )}
                                             </SortableProductRow>
