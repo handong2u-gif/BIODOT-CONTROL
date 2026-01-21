@@ -405,12 +405,28 @@ function processRow(sheet, rowIndex) {
     if (!dbKey) continue;
 
     // Format
-    if (typeof val === 'string') {
-        val = val.trim();
-        if (['price', 'cost', 'wholesale', 'weight', 'width', 'depth', 'height', 'units', 'qty', 'mm', 'kg', 'g'].some(function(k) { return dbKey.indexOf(k) !== -1; })) {
-            val = val.replace(/,/g, '');
-            if (!isNaN(Number(value)) && value !== '') value = Number(value);
+    if (dbKey.indexOf('date') !== -1) {
+        // Date Handling
+        if (val) {
+             var d = new Date(val);
+             if (!isNaN(d.getTime())) {
+                 // Format to YYYY-MM-DD
+                 var yyyy = d.getFullYear();
+                 var mm = ('0' + (d.getMonth() + 1)).slice(-2);
+                 var dd = ('0' + d.getDate()).slice(-2);
+                 val = yyyy + '-' + mm + '-' + dd;
+             }
         }
+    } else if (['price', 'cost', 'wholesale', 'weight', 'width', 'depth', 'height', 'units', 'qty', 'mm', 'kg', 'g'].some(function(k) { return dbKey.indexOf(k) !== -1; })) {
+        // Strict Numeric Handling (Prevent 22P02 errors)
+        var strVal = (val === null || val === undefined) ? "" : String(val).replace(/,/g, '').trim();
+        if (strVal !== '' && !isNaN(Number(strVal))) {
+             val = Number(strVal);
+        } else {
+             val = null; // Invalid number (e.g. date in price column) -> Send null
+        }
+    } else if (typeof val === 'string') {
+        val = val.trim();
     }
 
     if (tableName === 'finished_goods' && LOGISTICS_KEYS.indexOf(dbKey) !== -1) {

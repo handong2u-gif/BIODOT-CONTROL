@@ -17,7 +17,7 @@ import { useState } from "react";
 const navigation = [
   { name: "대시보드", href: "/", icon: LayoutDashboard },
   { name: "제품 정보", href: "/products", icon: Package },
-
+  { name: "원료 관리", href: "/raw-materials", icon: Boxes },
   { name: "거래처 관리", href: "/clients", icon: Building2 },
   { name: "문서 생성", href: "/documents", icon: FileText },
   { name: "내부 정책", href: "/policies", icon: BookOpen },

@@ -429,27 +429,36 @@ const ProductDetail = () => {
                                 </div>
 
                                 <div className="bg-slate-50 rounded-lg p-4 border border-slate-100 transition-all">
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center justify-between mb-2">
                                         <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                                            <Beaker className="w-4 h-4 text-slate-500" /> 원재료 및 함량
+                                            <Beaker className="w-4 h-4 text-slate-500" /> 원재료 정보
                                         </h3>
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => setShowIngredients(!showIngredients)}
-                                            className="h-6 text-xs text-slate-500 hover:text-slate-900"
+                                            className="h-6 text-xs text-emerald-600 hover:text-emerald-700 hover:tests-emerald-50"
                                         >
-                                            {showIngredients ? '숨기기' : '보기'}
+                                            {showIngredients ? '함량 숨기기' : '함량 보기'}
                                         </Button>
                                     </div>
 
-                                    {showIngredients && (
-                                        <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                                            <p className="text-sm text-slate-700 leading-relaxed bg-white p-3 rounded border border-slate-100 whitespace-pre-wrap">
-                                                {product.ingredients || '등록된 원재료 정보가 없습니다.'}
-                                            </p>
-                                        </div>
-                                    )}
+                                    <div className="text-sm text-slate-700 leading-relaxed bg-white p-3 rounded border border-slate-100 whitespace-pre-wrap">
+                                        {product.ingredients ? (
+                                            showIngredients ? (
+                                                // Show Full Ingredients with Percentages
+                                                <span className="animate-in fade-in duration-300">{product.ingredients}</span>
+                                            ) : (
+                                                // Show Masked Ingredients (Remove (...) % patterns)
+                                                // Regex removes (number%) or (number.number%) patterns commonly used
+                                                <span className="animate-in fade-in duration-300">
+                                                    {product.ingredients.replace(/\(\d+(\.\d+)?%\)/g, '').replace(/\[.*?\]/g, (match) => match.replace(/[\[\]]/g, ''))}
+                                                </span>
+                                            )
+                                        ) : (
+                                            '등록된 원재료 정보가 없습니다.'
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div>
