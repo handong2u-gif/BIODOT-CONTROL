@@ -174,6 +174,27 @@ const RawMaterials = () => {
         }
     };
 
+    const handleUpdate = async (id: string, field: keyof RawMaterialData, value: any) => {
+        // DB Update
+        try {
+            const { error } = await (supabase as any)
+                .from('raw_materials')
+                .update({ [field]: value })
+                .eq('id', id);
+
+            if (error) throw error;
+            toast.success("저장되었습니다.");
+        } catch (err: any) {
+            console.error('Update error:', err);
+            toast.error("저장 실패");
+        }
+    };
+
+    const handleLocalChange = (id: string, field: keyof RawMaterialData, value: any) => {
+        setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+        setFilteredProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             {/* HEADER */}
@@ -349,10 +370,30 @@ const RawMaterials = () => {
                                                                 />
                                                             </div>
                                                         </div>
-                                                        <div>
+                                                        <div className="flex-1 min-w-[200px]">
                                                             {/* Combine Name and Spec */}
-                                                            <div className="font-medium text-slate-900">{item.product_name}</div>
-                                                            {item.spec && <div className="text-xs text-slate-500 mt-0.5">{item.spec}</div>}
+                                                            {isAdmin ? (
+                                                                <div className="space-y-1" onClick={e => e.stopPropagation()}>
+                                                                    <Input
+                                                                        value={item.product_name}
+                                                                        onChange={(e) => handleLocalChange(item.id, 'product_name', e.target.value)}
+                                                                        onBlur={(e) => handleUpdate(item.id, 'product_name', e.target.value)}
+                                                                        className="h-8 font-medium text-slate-900 border-slate-200 focus:border-emerald-500"
+                                                                    />
+                                                                    <Input
+                                                                        value={item.spec || ''}
+                                                                        placeholder="규격"
+                                                                        onChange={(e) => handleLocalChange(item.id, 'spec', e.target.value)}
+                                                                        onBlur={(e) => handleUpdate(item.id, 'spec', e.target.value)}
+                                                                        className="h-6 text-xs text-slate-500 border-transparent bg-slate-50 hover:bg-white hover:border-slate-200 focus:bg-white focus:border-emerald-500 w-1/2 transition-all"
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="font-medium text-slate-900">{item.product_name}</div>
+                                                                    {item.spec && <div className="text-xs text-slate-500 mt-0.5">{item.spec}</div>}
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </td>
@@ -363,7 +404,19 @@ const RawMaterials = () => {
                                                     {item.memo || '-'}
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-medium text-emerald-700">
-                                                    {formatMoney(item.wholesale_a)}
+                                                    {isAdmin ? (
+                                                        <div onClick={e => e.stopPropagation()}>
+                                                            <Input
+                                                                type="number"
+                                                                value={item.wholesale_a || ''}
+                                                                onChange={(e) => handleLocalChange(item.id, 'wholesale_a', e.target.value ? Number(e.target.value) : null)}
+                                                                onBlur={(e) => handleUpdate(item.id, 'wholesale_a', e.target.value ? Number(e.target.value) : null)}
+                                                                className="h-8 text-right font-medium text-emerald-700 border-slate-200 focus:border-emerald-500"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        formatMoney(item.wholesale_a)
+                                                    )}
                                                 </td>
                                                 {showCost && (
                                                     <td className="px-4 py-3 text-right font-medium text-red-600 bg-red-50/30">
