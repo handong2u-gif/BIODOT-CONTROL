@@ -361,7 +361,7 @@ const ProductDetail = () => {
                                 <h3 className="text-sm font-semibold text-slate-900">가격 정보</h3>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="p-4 rounded-lg bg-emerald-50/50 border border-emerald-100">
-                                        <span className="text-xs text-emerald-600 font-semibold block mb-1">도매가 A</span>
+                                        <span className="text-xs text-emerald-600 font-semibold block mb-1">위탁가(배송비별도)</span>
                                         <span className="text-2xl font-bold text-emerald-800">{formatMoney(product.wholesale_a)}</span>
                                     </div>
                                     <div className="p-4 rounded-lg bg-white border border-slate-200">
@@ -373,11 +373,11 @@ const ProductDetail = () => {
                                         <span className="text-xl font-bold text-blue-800">{formatMoney(product.online_price)}</span>
                                     </div>
                                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                                        <span className="text-xs text-slate-400 block mb-1">도매가 B</span>
+                                        <span className="text-xs text-slate-400 block mb-1">도매가(月40개 이상)</span>
                                         <span className="text-lg text-slate-600">{formatMoney(product.wholesale_b)}</span>
                                     </div>
                                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                                        <span className="text-xs text-slate-400 block mb-1">도매가 C</span>
+                                        <span className="text-xs text-slate-400 block mb-1">초도매가(月500개 이상)</span>
                                         <span className="text-lg text-slate-600">{formatMoney(product.wholesale_c)}</span>
                                     </div>
                                 </div>
