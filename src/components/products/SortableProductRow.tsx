@@ -44,10 +44,11 @@ export function SortableProductRow({ id, children, isAdmin, onClick, isReorderMo
         );
     }
 
+    // 4. Render Row
     return (
         <tr
-            ref={setNodeRef}
-            style={style}
+            ref={isReorderMode ? setNodeRef : undefined}
+            style={isReorderMode ? style : undefined}
             className={`hover:bg-slate-50/80 transition-colors group text-slate-700 cursor-pointer border-b ${isDragging ? "bg-slate-100 shadow-md" : ""}`}
             onClick={onClick}
         >
