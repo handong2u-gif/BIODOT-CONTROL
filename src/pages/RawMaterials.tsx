@@ -223,8 +223,10 @@ const RawMaterials = () => {
                 console.log('[Update Success] Standard update successful. Checked Data:', data);
             }
 
-            toast.success(`저장되었습니다. (${field})`);
+            toast.dismiss(tId);
+            toast.success(`저장되었습니다.`);
         } catch (err: any) {
+            toast.dismiss(tId);
             console.error('[Critical Error] Update handler exception:', err);
             toast.error(`저장 실패: ${err.message || 'Unknown error'} / Code: ${err.code || 'N/A'}`);
         }
@@ -445,7 +447,7 @@ const RawMaterials = () => {
                                                         <div className="flex-1 min-w-[200px]">
                                                             {/* Combine Name and Spec */}
                                                             {isAdmin ? (
-                                                                <div className="space-y-1" onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
+                                                                <div className="space-y-1" onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}>
                                                                     <Input
                                                                         value={item.product_name}
                                                                         onChange={(e) => handleLocalChange(item.id, 'product_name', e.target.value)}
@@ -487,7 +489,7 @@ const RawMaterials = () => {
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-medium text-emerald-700">
                                                     {isAdmin ? (
-                                                        <div onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
+                                                        <div onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}>
                                                             <Input
                                                                 type="number"
                                                                 value={item.wholesale_a || ''}
