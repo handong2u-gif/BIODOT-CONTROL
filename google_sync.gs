@@ -1,6 +1,6 @@
 /**
  * Google Sheets to Supabase Sync
- * Updated: 2024-01-20 (Final Robust Version: Keywords + Auto-Append + Debug)
+ * Updated: 2024-01-22 (Final Robust Version: Keywords + Auto-Append + Debug)
  */
 
 var SUPABASE_URL = 'https://qfvmqotkhjkewdwzibyb.supabase.co';
@@ -30,7 +30,7 @@ var HEADER_MAP = {
   '원재료정보': 'ingredients', '원재료 정보': 'ingredients',
 
   // 가격
-  '공급가': 'wholesale_a', '도매가A': 'wholesale_a', '도매가 A': 'wholesale_a', '도매가(A)': 'wholesale_a',
+  '공급가': 'wholesale_a', '공급단가': 'wholesale_a', '도매가A': 'wholesale_a', '도매가 A': 'wholesale_a', '도매가(A)': 'wholesale_a',
   '도매가B': 'wholesale_b', '도매가 B': 'wholesale_b', '도매가(B)': 'wholesale_b',
   '도매가C': 'wholesale_c', '도매가 C': 'wholesale_c', '도매가(C)': 'wholesale_c',
   '소비자가': 'retail_price', '할인가': 'retail_price', '소비자가격': 'retail_price',
@@ -203,6 +203,11 @@ function fetchFromSupabase() {
     for (var h = 0; h < currentHeaders.length; h++) {
         var headerName = currentHeaders[h].toString().trim();
         var dbKey = HEADER_MAP[headerName];
+        
+        // [Override] For raw_materials
+        if (tableName === 'raw_materials' && (headerName === '원가' || headerName === 'Cost')) {
+             dbKey = 'cost_price';
+        }
         
         // Robust Matching
         if (!dbKey) {
@@ -400,6 +405,11 @@ function processRow(sheet, rowIndex) {
                 else if (normalized.indexOf('제품') !== -1 && (normalized.indexOf('세로') !== -1 || normalized.indexOf('깊이') !== -1)) dbKey = 'product_depth_mm';
                 else if (normalized.indexOf('제품') !== -1 && normalized.indexOf('높이') !== -1) dbKey = 'product_height_mm';
             }
+    }
+    
+    // [Override] For raw_materials, map '원가' to 'cost_price'
+    if (tableName === 'raw_materials') {
+         if (rawHeader === '원가' || rawHeader === 'Cost') dbKey = 'cost_price';
     }
     
     if (!dbKey) continue;
