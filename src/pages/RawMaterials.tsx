@@ -183,28 +183,50 @@ const RawMaterials = () => {
     };
 
     const handleUpdate = async (id: string, field: keyof RawMaterialData, value: any) => {
+        console.log(`[Update Start] ID: ${id}, Field: ${field}, Value:`, value);
+
         // DB Update
         try {
             // 1. Try standard update first
-            const { error } = await (supabase as any)
+            console.log('[Update Attempt] Trying standard update...');
+            const { error, data } = await (supabase as any)
                 .from('raw_materials')
                 .update({ [field]: value })
-                .eq('id', id);
+                .eq('id', id)
+                .select();
 
             if (error) {
-                console.warn("Standard update failed, attempting RPC fallback...", error);
+                console.warn("[Update Fail] Standard update failed. Error:", error);
+                console.log('[Update Attempt] Attempting RPC fallback...');
+
+                // Safe convert to string for RPC
+                let strValue = '';
+                if (value !== null && value !== undefined) {
+                    strValue = String(value);
+                }
+
+                console.log(`[RPC Params] p_id: ${id}, p_field: ${field}, p_value: "${strValue}"`);
+
                 // 2. Fallback to RPC if RLS blocks standard update
                 const { error: rpcError } = await supabase.rpc('update_raw_material_v2', {
                     p_id: id,
                     p_field: field,
-                    p_value: String(value === null ? '' : value)
+                    p_value: strValue
                 });
-                if (rpcError) throw rpcError;
+
+                if (rpcError) {
+                    console.error('[Update Fail] RPC failed.', rpcError);
+                    throw rpcError;
+                }
+                console.log('[Update Success] RPC update successful.');
+            } else {
+                console.log('[Update Success] Standard update successful. Checked Data:', data);
             }
-            toast.success("저장되었습니다.");
+
+            toast.success(`저장되었습니다. (${field})`);
         } catch (err: any) {
-            console.error('Update error:', err);
-            toast.error(`저장 실패: ${err.message}`);
+            console.error('[Critical Error] Update handler exception:', err);
+            toast.error(`저장 실패: ${err.message || 'Unknown error'} / Code: ${err.code || 'N/A'}`);
         }
     };
 
