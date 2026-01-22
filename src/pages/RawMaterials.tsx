@@ -185,12 +185,22 @@ const RawMaterials = () => {
     const handleUpdate = async (id: string, field: keyof RawMaterialData, value: any) => {
         // DB Update
         try {
+            // 1. Try standard update first
             const { error } = await (supabase as any)
                 .from('raw_materials')
                 .update({ [field]: value })
                 .eq('id', id);
 
-            if (error) throw error;
+            if (error) {
+                console.warn("Standard update failed, attempting RPC fallback...", error);
+                // 2. Fallback to RPC if RLS blocks standard update
+                const { error: rpcError } = await supabase.rpc('update_raw_material_v2', {
+                    p_id: id,
+                    p_field: field,
+                    p_value: String(value === null ? '' : value)
+                });
+                if (rpcError) throw rpcError;
+            }
             toast.success("저장되었습니다.");
         } catch (err: any) {
             console.error('Update error:', err);
