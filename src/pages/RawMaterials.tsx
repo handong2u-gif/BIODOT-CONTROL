@@ -72,6 +72,7 @@ const RawMaterials = () => {
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [showCost, setShowCost] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isReorderMode, setIsReorderMode] = useState(false); // Default: Edit Mode (Drag disabled)
 
     // Sort Configuration
     interface SortConfig {
@@ -296,6 +297,24 @@ const RawMaterials = () => {
                         </Label>
                     </div>
 
+                    {isAdmin && (
+                        <div className="flex items-center gap-2 mr-4 bg-orange-50 p-1.5 px-3 rounded-full border border-orange-100">
+                            <Switch
+                                id="reorder-mode"
+                                checked={isReorderMode}
+                                onCheckedChange={(c) => {
+                                    setIsReorderMode(c);
+                                    if (c) toast.info("순서 변경 모드: 드래그하여 순서를 바꿀 수 있습니다.");
+                                    else toast.info("수정 모드: 값을 클릭하여 수정할 수 있습니다.");
+                                }}
+                                className="scale-75 data-[state=checked]:bg-orange-500"
+                            />
+                            <Label htmlFor="reorder-mode" className="text-xs font-medium cursor-pointer text-orange-700">
+                                순서 변경
+                            </Label>
+                        </div>
+                    )}
+
                     <Button onClick={fetchProducts} variant="outline" size="sm">
                         새로고침
                     </Button>
@@ -422,6 +441,7 @@ const RawMaterials = () => {
                                                 key={item.id}
                                                 id={item.id}
                                                 isAdmin={isAdmin && !searchTerm && !sortConfig}
+                                                isReorderMode={isReorderMode}
                                                 // Raw materials details not implemented yet, disable click nav
                                                 onClick={() => { }}
                                             >

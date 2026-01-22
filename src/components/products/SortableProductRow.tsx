@@ -10,9 +10,10 @@ interface SortableProductRowProps {
     children: React.ReactNode;
     isAdmin: boolean;
     onClick?: () => void;
+    isReorderMode?: boolean;
 }
 
-export function SortableProductRow({ id, children, isAdmin, onClick }: SortableProductRowProps) {
+export function SortableProductRow({ id, children, isAdmin, onClick, isReorderMode = true }: SortableProductRowProps) {
     const {
         attributes,
         listeners,
@@ -20,7 +21,10 @@ export function SortableProductRow({ id, children, isAdmin, onClick }: SortableP
         transform,
         transition,
         isDragging,
-    } = useSortable({ id });
+    } = useSortable({
+        id,
+        disabled: !isReorderMode
+    });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -48,14 +52,18 @@ export function SortableProductRow({ id, children, isAdmin, onClick }: SortableP
             onClick={onClick}
         >
             <td className="w-[40px] px-2 text-center">
-                <button
-                    type="button"
-                    className="p-2 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing touch-none focus:outline-none"
-                    {...attributes}
-                    {...listeners}
-                >
-                    <GripVertical className="w-4 h-4" />
-                </button>
+                {isReorderMode ? (
+                    <button
+                        type="button"
+                        className="p-2 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing touch-none focus:outline-none"
+                        {...attributes}
+                        {...listeners}
+                    >
+                        <GripVertical className="w-4 h-4" />
+                    </button>
+                ) : (
+                    <div className="w-8 h-8" />
+                )}
             </td>
             {children}
         </tr>
