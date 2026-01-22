@@ -166,7 +166,7 @@ const RawMaterials = () => {
                 (async () => {
                     try {
                         const promises = updates.map(u =>
-                            supabase.rpc('update_raw_material_sort_order', {
+                            (supabase as any).rpc('update_raw_material_sort_order', {
                                 p_id: u.id,
                                 p_sort_order: u.sort_order
                             })
@@ -208,7 +208,7 @@ const RawMaterials = () => {
                 console.log(`[RPC Params] p_id: ${id}, p_field: ${field}, p_value: "${strValue}"`);
 
                 // 2. Fallback to RPC if RLS blocks standard update
-                const { error: rpcError } = await supabase.rpc('update_raw_material_v2', {
+                const { error: rpcError } = await (supabase as any).rpc('update_raw_material_v2', {
                     p_id: id,
                     p_field: field,
                     p_value: strValue
@@ -445,11 +445,16 @@ const RawMaterials = () => {
                                                         <div className="flex-1 min-w-[200px]">
                                                             {/* Combine Name and Spec */}
                                                             {isAdmin ? (
-                                                                <div className="space-y-1" onClick={e => e.stopPropagation()}>
+                                                                <div className="space-y-1" onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
                                                                     <Input
                                                                         value={item.product_name}
                                                                         onChange={(e) => handleLocalChange(item.id, 'product_name', e.target.value)}
                                                                         onBlur={(e) => handleUpdate(item.id, 'product_name', e.target.value)}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') {
+                                                                                e.currentTarget.blur();
+                                                                            }
+                                                                        }}
                                                                         className="h-8 font-medium text-slate-900 border-slate-200 focus:border-emerald-500"
                                                                     />
                                                                     <Input
@@ -457,6 +462,11 @@ const RawMaterials = () => {
                                                                         placeholder="규격"
                                                                         onChange={(e) => handleLocalChange(item.id, 'spec', e.target.value)}
                                                                         onBlur={(e) => handleUpdate(item.id, 'spec', e.target.value)}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') {
+                                                                                e.currentTarget.blur();
+                                                                            }
+                                                                        }}
                                                                         className="h-6 text-xs text-slate-500 border-transparent bg-slate-50 hover:bg-white hover:border-slate-200 focus:bg-white focus:border-emerald-500 w-1/2 transition-all"
                                                                     />
                                                                 </div>
@@ -477,12 +487,17 @@ const RawMaterials = () => {
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-medium text-emerald-700">
                                                     {isAdmin ? (
-                                                        <div onClick={e => e.stopPropagation()}>
+                                                        <div onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
                                                             <Input
                                                                 type="number"
                                                                 value={item.wholesale_a || ''}
                                                                 onChange={(e) => handleLocalChange(item.id, 'wholesale_a', e.target.value ? Number(e.target.value) : null)}
                                                                 onBlur={(e) => handleUpdate(item.id, 'wholesale_a', e.target.value ? Number(e.target.value) : null)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.currentTarget.blur();
+                                                                    }
+                                                                }}
                                                                 className="h-8 text-right font-medium text-emerald-700 border-slate-200 focus:border-emerald-500"
                                                             />
                                                         </div>
