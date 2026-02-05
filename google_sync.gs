@@ -403,7 +403,10 @@ function processRow(sheet, rowIndex) {
   for (var i = 0; i < headers.length; i++) {
     var rawHeader = headers[i].toString().trim();
     var val = rowData[i];
-    if (val === "" || val === undefined) continue;
+    
+    // Skip empty values (null, undefined, empty string, or whitespace-only)
+    if (val === null || val === undefined || val === "") continue;
+    if (typeof val === 'string' && val.trim() === "") continue;
 
     // Resolve Key (Keyword Match)
     var dbKey = HEADER_MAP[rawHeader];
