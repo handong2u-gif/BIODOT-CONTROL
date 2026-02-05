@@ -69,7 +69,16 @@ var HEADER_MAP = {
   // 마케팅 포인트
   '셀링포인트': 'selling_point', 'SellingPoint': 'selling_point', '판매포인트': 'selling_point',
   '제품특징': 'key_features', '특징': 'key_features', 'KeyFeatures': 'key_features', 'Features': 'key_features',
-  '타겟': 'target_customer', '추천대상': 'target_customer', 'Target': 'target_customer'
+  '타겟': 'target_customer', '추천대상': 'target_customer', 'Target': 'target_customer',
+
+  // 영문 키 직접 매핑 (사용자 시트 대응)
+  'ingredients': 'ingredients',
+  'stock_status': 'stock_status',
+  'tags': 'tags',
+  'key_features': 'key_features',
+  'target_customer': 'target_customer',
+  'selling_point': 'selling_point',
+  'sort_order': 'sort_order'
 };
 
 var LOGISTICS_KEYS = [
