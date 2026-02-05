@@ -64,8 +64,6 @@ var HEADER_MAP = {
   '팔레트적재': 'cartons_per_pallet', '파레트': 'cartons_per_pallet',
 
   // 추가 매핑 (Ingredients)
-  '원료': 'ingredients', '원료명': 'ingredients', '원료 및 함량': 'ingredients', '함량': 'ingredients'
-  // 추가 매핑 (Ingredients)
   '원료': 'ingredients', '원료명': 'ingredients', '원료 및 함량': 'ingredients', '함량': 'ingredients',
 
   // 마케팅 포인트
