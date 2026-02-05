@@ -65,6 +65,13 @@ var HEADER_MAP = {
 
   // 추가 매핑 (Ingredients)
   '원료': 'ingredients', '원료명': 'ingredients', '원료 및 함량': 'ingredients', '함량': 'ingredients'
+  // 추가 매핑 (Ingredients)
+  '원료': 'ingredients', '원료명': 'ingredients', '원료 및 함량': 'ingredients', '함량': 'ingredients',
+
+  // 마케팅 포인트
+  '셀링포인트': 'selling_point', 'SellingPoint': 'selling_point', '판매포인트': 'selling_point',
+  '제품특징': 'key_features', '특징': 'key_features', 'KeyFeatures': 'key_features', 'Features': 'key_features',
+  '타겟': 'target_customer', '추천대상': 'target_customer', 'Target': 'target_customer'
 };
 
 var LOGISTICS_KEYS = [
@@ -460,6 +467,10 @@ function processRow(sheet, rowIndex) {
   
   if (mainPayload['tags'] && typeof mainPayload['tags'] === 'string') {
       mainPayload['tags'] = mainPayload['tags'].split(',').map(function(t) { return t.trim(); });
+  }
+
+  if (mainPayload['key_features'] && typeof mainPayload['key_features'] === 'string') {
+      mainPayload['key_features'] = mainPayload['key_features'].split(/[\n,]+/).map(function(t) { return t.trim(); }).filter(function(t) { return t.length > 0; });
   }
 
   var options = {
