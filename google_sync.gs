@@ -1,6 +1,6 @@
 /**
  * Google Sheets to Supabase Sync
- * Updated: 2024-01-22 (Final Robust Version: Keywords + Auto-Append + Debug)
+ * Updated: 2026-01-22 (Final Robust Version for Raw Materials)
  */
 
 var SUPABASE_URL = 'https://qfvmqotkhjkewdwzibyb.supabase.co';
@@ -35,6 +35,7 @@ var HEADER_MAP = {
   '도매가C': 'wholesale_c', '도매가 C': 'wholesale_c', '도매가(C)': 'wholesale_c',
   '소비자가': 'retail_price', '할인가': 'retail_price', '소비자가격': 'retail_price',
   '온라인가': 'online_price', '온라인판매가': 'online_price', '판매가': 'online_price', '온라인 판매가': 'online_price', '온라인가격': 'online_price',
+  // 원가는 테이블별로 처리 (finished_goods -> cost_blind, raw_materials -> cost_price)
   '원가': 'cost_blind', 'Cost': 'cost_blind',
 
   // 날짜
@@ -60,7 +61,10 @@ var HEADER_MAP = {
   '제품높이': 'product_height_mm', '단품높이': 'product_height_mm', '높이': 'product_height_mm', '제품 높이': 'product_height_mm',
 
   '입수': 'units_per_carton', '카톤입수': 'units_per_carton', '박스입수': 'units_per_carton', '입수량': 'units_per_carton',
-  '팔레트적재': 'cartons_per_pallet', '파레트': 'cartons_per_pallet'
+  '팔레트적재': 'cartons_per_pallet', '파레트': 'cartons_per_pallet',
+
+  // 추가 매핑 (Ingredients)
+  '원료': 'ingredients', '원료명': 'ingredients', '원료 및 함량': 'ingredients', '함량': 'ingredients'
 };
 
 var LOGISTICS_KEYS = [
@@ -96,9 +100,9 @@ function debugFetchOneRow() {
   var sheet = SpreadsheetApp.getActiveSheet();
   var sheetName = sheet.getName();
   var tableName = SHEET_CONFIG[sheetName];
-  if (!tableName) tableName = 'finished_goods'; 
+  if (!tableName) tableName = 'raw_materials'; // Default to raw_materials for debugging if unknown
 
-  var url = SUPABASE_URL + '/rest/v1/' + tableName + '?select=*,product_logistics_specs(*)&limit=1';
+  var url = SUPABASE_URL + '/rest/v1/' + tableName + '?select=*&limit=1';
   var options = {
     'method': 'get',
     'headers': {
@@ -112,20 +116,21 @@ function debugFetchOneRow() {
   try {
     var res = UrlFetchApp.fetch(url, options);
     var content = res.getContentText();
+    
+    if (res.getResponseCode() >= 300) {
+        ui.alert('❌ DB 연결 실패: ' + content);
+        return;
+    }
+
     var data = JSON.parse(content);
 
     if (data.length > 0) {
       var row = data[0];
-      var log = row.product_logistics_specs;
-      var hasLog = (log && log.length > 0) ? 'YES' : 'NO';
-      var logData = hasLog === 'YES' ? JSON.stringify(log[0]) : 'N/A';
-      
       ui.alert(
         '✅ DB 연결 성공!\n' +
         'Table: ' + tableName + '\n' +
-        '첫번째 제품: ' + row.product_name + '\n' +
-        '물류 정보 존재 여부: ' + hasLog + '\n' +
-        '물류 데이터 샘플:\n' + logData
+        '첫번째 제품: ' + (row.product_name || '이름없음') + '\n' +
+        '데이터 샘플: ' + JSON.stringify(row)
       );
     } else {
       ui.alert('⚠️ DB 연결 성공했으나 데이터가 없습니다.');
@@ -136,13 +141,16 @@ function debugFetchOneRow() {
 }
 
 function fetchFromSupabase() {
+  var ui = SpreadsheetApp.getUi();
+  // Version Check
+  ui.alert("🔄 스크립트 버전: v2.1 (Final Fix)\n업데이트 확인되었습니다.");
+
   var sheet = SpreadsheetApp.getActiveSheet();
   var sheetName = sheet.getName();
   var tableName = SHEET_CONFIG[sheetName];
-  var ui = SpreadsheetApp.getUi();
 
   if (!tableName) {
-    ui.alert('현재 시트는 동기화 대상이 아닙니다.');
+    ui.alert('현재 시트는 동기화 대상이 아닙니다. (시트명: 완제품, 원료)');
     return;
   }
 
@@ -204,11 +212,6 @@ function fetchFromSupabase() {
         var headerName = currentHeaders[h].toString().trim();
         var dbKey = HEADER_MAP[headerName];
         
-        // [Override] For raw_materials
-        if (tableName === 'raw_materials' && (headerName === '원가' || headerName === 'Cost')) {
-             dbKey = 'cost_price';
-        }
-        
         // Robust Matching
         if (!dbKey) {
              var normalized = normalizeHeader(headerName);
@@ -231,6 +234,12 @@ function fetchFromSupabase() {
                 else if (normalized.indexOf('제품') !== -1 && (normalized.indexOf('세로') !== -1 || normalized.indexOf('깊이') !== -1)) dbKey = 'product_depth_mm';
                 else if (normalized.indexOf('제품') !== -1 && normalized.indexOf('높이') !== -1) dbKey = 'product_height_mm';
              }
+        }
+
+        // [Final Override] Fix specific mappings for raw_materials AFTER resolution
+        if (tableName === 'raw_materials') {
+             if (dbKey === 'cost_blind') dbKey = 'cost_price';
+             if (headerName === '원가' || headerName === 'Cost') dbKey = 'cost_price';
         }
         
         if (dbKey) {
@@ -269,7 +278,6 @@ function fetchFromSupabase() {
 
     if (newHeaders.length > 0) {
         sheet.getRange(1, currentHeaders.length + 1, 1, newHeaders.length).setValues([newHeaders]);
-        // ui.alert('ℹ️ 새 컬럼 추가됨: ' + newHeaders.join(', '));
         lastCol += newHeaders.length;
     }
 
@@ -385,6 +393,12 @@ function processRow(sheet, rowIndex) {
 
     // Resolve Key (Keyword Match)
     var dbKey = HEADER_MAP[rawHeader];
+    
+    // [Override] For raw_materials, map '원가' to 'cost_price'
+    if (tableName === 'raw_materials') {
+         if (rawHeader === '원가' || rawHeader === 'Cost') dbKey = 'cost_price';
+    }
+
     if (!dbKey) {
             var normalized = normalizeHeader(rawHeader);
             dbKey = HEADER_MAP[normalized];
@@ -405,11 +419,6 @@ function processRow(sheet, rowIndex) {
                 else if (normalized.indexOf('제품') !== -1 && (normalized.indexOf('세로') !== -1 || normalized.indexOf('깊이') !== -1)) dbKey = 'product_depth_mm';
                 else if (normalized.indexOf('제품') !== -1 && normalized.indexOf('높이') !== -1) dbKey = 'product_height_mm';
             }
-    }
-    
-    // [Override] For raw_materials, map '원가' to 'cost_price'
-    if (tableName === 'raw_materials') {
-         if (rawHeader === '원가' || rawHeader === 'Cost') dbKey = 'cost_price';
     }
     
     if (!dbKey) continue;
@@ -466,6 +475,7 @@ function processRow(sheet, rowIndex) {
 
   // Upsert Product
   var existingId = null;
+  // Try to find existing product by name
   var searchUrl = SUPABASE_URL + '/rest/v1/' + tableName + '?product_name=eq.' + encodeURIComponent(mainPayload.product_name) + '&select=id';
   var searchRes = UrlFetchApp.fetch(searchUrl, { headers: options.headers });
   if (searchRes.getResponseCode() === 200) {
