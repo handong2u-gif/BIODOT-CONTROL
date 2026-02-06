@@ -430,6 +430,11 @@ function processRow(sheet, rowIndex) {
     // Resolve Key (Keyword Match)
     var dbKey = HEADER_MAP[rawHeader];
     
+    // Log mapping for critical fields
+    if (rawHeader === 'ingredients' || rawHeader === 'selling_point' || rawHeader === 'key_features') {
+      Logger.log('Mapping "' + rawHeader + '" -> dbKey: ' + (dbKey || 'NOT FOUND'));
+    }
+    
     // [Override] For raw_materials, map '원가' to 'cost_price'
     if (tableName === 'raw_materials') {
          if (rawHeader === '원가' || rawHeader === 'Cost') dbKey = 'cost_price';
@@ -457,7 +462,12 @@ function processRow(sheet, rowIndex) {
             }
     }
     
-    if (!dbKey) continue;
+    if (!dbKey) {
+      if (rawHeader === 'ingredients' || rawHeader === 'selling_point' || rawHeader === 'key_features') {
+        Logger.log('WARNING: Failed to map "' + rawHeader + '" - skipping this field!');
+      }
+      continue;
+    }
 
     // Format
     if (dbKey.indexOf('date') !== -1) {
@@ -472,7 +482,14 @@ function processRow(sheet, rowIndex) {
                  val = yyyy + '-' + mm + '-' + dd;
              }
         }
-    } else if (['price', 'cost', 'wholesale', 'weight', 'width', 'depth', 'height', 'units', 'qty', 'mm', 'kg', 'g'].some(function(k) { return dbKey.indexOf(k) !== -1; })) {
+    } else if (
+        // Exclude text fields from numeric conversion
+        dbKey !== 'ingredients' && 
+        dbKey !== 'selling_point' && 
+        dbKey !== 'key_features' && 
+        dbKey !== 'target_customer' &&
+        ['price', 'cost', 'wholesale', 'weight', 'width', 'depth', 'height', 'units', 'qty', 'mm', 'kg', 'g'].some(function(k) { return dbKey.indexOf(k) !== -1; })
+    ) {
         // Strict Numeric Handling (Prevent 22P02 errors)
         var strVal = (val === null || val === undefined) ? "" : String(val).replace(/,/g, '').trim();
         if (strVal !== '' && !isNaN(Number(strVal))) {
