@@ -389,12 +389,21 @@ function syncAllRows() {
 }
 
 function processRow(sheet, rowIndex) {
+  console.log('=== processRow 시작 ===');
+  console.log('rowIndex: ' + rowIndex);
+  
   var sheetName = sheet.getName();
   var tableName = SHEET_CONFIG[sheetName];
+  
+  console.log('sheetName: ' + sheetName);
+  console.log('tableName: ' + tableName);
+  
   if (!tableName) return { success: false, error: '매핑된 테이블 없음' };
 
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   var rowData = sheet.getRange(rowIndex, 1, 1, sheet.getLastColumn()).getValues()[0];
+  
+  console.log('헤더 개수: ' + headers.length);
 
   var mainPayload = {};
   var logisticsPayload = {};
@@ -404,9 +413,22 @@ function processRow(sheet, rowIndex) {
     var rawHeader = headers[i].toString().trim();
     var val = rowData[i];
     
-    // Skip empty values (null, undefined, empty string, or whitespace-only)
-    if (val === null || val === undefined || val === "") continue;
-    if (typeof val === 'string' && val.trim() === "") continue;
+    // 특정 헤더만 로그
+    if (rawHeader === 'ingredients' || rawHeader === 'selling_point') {
+      console.log('발견! 헤더: ' + rawHeader + ', 값: [' + val + '], 타입: ' + typeof val + ', 길이: ' + (val ? val.length : 0));
+    }
+    
+    // Skip truly empty values
+    if (val === null || val === undefined) continue;
+    if (val === "") continue;
+    
+    // For strings, check if it's only whitespace
+    if (typeof val === 'string') {
+      var trimmedVal = val.trim();
+      if (trimmedVal === "") continue;
+      // Use trimmed value from now on
+      val = trimmedVal;
+    }
 
     // Resolve Key (Keyword Match)
     var dbKey = HEADER_MAP[rawHeader];
@@ -474,6 +496,19 @@ function processRow(sheet, rowIndex) {
   }
 
   if (!mainPayload['product_name']) return { success: false, error: '제품명 없음' };
+  
+  // 디버그 팝업
+  SpreadsheetApp.getUi().alert(
+    '🔍 업로드 데이터 확인\n\n' +
+    'ingredients: ' + (mainPayload['ingredients'] || '(비어있음)') + '\n\n' +
+    'selling_point: ' + (mainPayload['selling_point'] || '(비어있음)') + '\n\n' +
+    'key_features: ' + (mainPayload['key_features'] ? JSON.stringify(mainPayload['key_features']).substring(0, 100) : '(비어있음)')
+  );
+  
+  console.log('=== 최종 Payload ===');
+  console.log('ingredients: ' + mainPayload['ingredients']);
+  console.log('selling_point: ' + mainPayload['selling_point']);
+  console.log('key_features: ' + JSON.stringify(mainPayload['key_features']));
   
   if (mainPayload['tags'] && typeof mainPayload['tags'] === 'string') {
       mainPayload['tags'] = mainPayload['tags'].split(',').map(function(t) { return t.trim(); });
