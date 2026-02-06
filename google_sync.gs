@@ -392,6 +392,9 @@ function processRow(sheet, rowIndex) {
   var sheetName = sheet.getName();
   var tableName = SHEET_CONFIG[sheetName];
   
+  Logger.log('=== processRow 시작 ===');
+  Logger.log('Sheet: ' + sheetName + ', Table: ' + tableName + ', Row: ' + rowIndex);
+  
   if (!tableName) return { success: false, error: '매핑된 테이블 없음' };
 
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -400,10 +403,17 @@ function processRow(sheet, rowIndex) {
   var mainPayload = {};
   var logisticsPayload = {};
   var hasLogistics = false;
+  
+  var debugInfo = [];
 
   for (var i = 0; i < headers.length; i++) {
     var rawHeader = headers[i].toString().trim();
     var val = rowData[i];
+    
+    // Log specific fields
+    if (rawHeader === 'ingredients' || rawHeader === 'selling_point' || rawHeader === 'key_features') {
+      debugInfo.push(rawHeader + ': [' + (val ? String(val).substring(0, 50) : 'empty') + '...]');
+    }
     
     // Skip truly empty values
     if (val === null || val === undefined) continue;
@@ -484,6 +494,8 @@ function processRow(sheet, rowIndex) {
 
   if (!mainPayload['product_name']) return { success: false, error: '제품명 없음' };
   
+  Logger.log('Debug Info: ' + debugInfo.join(' | '));
+  
   if (mainPayload['tags'] && typeof mainPayload['tags'] === 'string') {
       mainPayload['tags'] = mainPayload['tags'].split(',').map(function(t) { return t.trim(); });
   }
@@ -491,6 +503,11 @@ function processRow(sheet, rowIndex) {
   if (mainPayload['key_features'] && typeof mainPayload['key_features'] === 'string') {
       mainPayload['key_features'] = mainPayload['key_features'].split(/[\n,]+/).map(function(t) { return t.trim(); }).filter(function(t) { return t.length > 0; });
   }
+  
+  Logger.log('Final Payload Keys: ' + Object.keys(mainPayload).join(', '));
+  Logger.log('Has ingredients: ' + (mainPayload['ingredients'] ? 'YES' : 'NO'));
+  Logger.log('Has selling_point: ' + (mainPayload['selling_point'] ? 'YES' : 'NO'));
+  Logger.log('Has key_features: ' + (mainPayload['key_features'] ? 'YES (' + mainPayload['key_features'].length + ')' : 'NO'));
 
   var options = {
     'method': 'post',
