@@ -186,6 +186,8 @@ const RawMaterials = () => {
     const handleUpdate = async (id: string, field: keyof RawMaterialData, value: any) => {
         console.log(`[Update Start] ID: ${id}, Field: ${field}, Value:`, value);
 
+        const tId = toast.loading('저장 중...');
+
         // DB Update
         try {
             // 1. Try standard update first

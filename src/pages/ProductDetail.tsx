@@ -50,14 +50,17 @@ interface SpecialPrice {
 
 interface LogisticsSpecs {
     id: number;
+    logistics_barcode: string | null;
     product_weight_g: number | null;
+    product_width_mm: number | null;
+    product_depth_mm: number | null;
+    product_height_mm: number | null;
     carton_weight_kg: number | null;
     carton_width_mm: number | null;
     carton_depth_mm: number | null;
     carton_height_mm: number | null;
     units_per_carton: number | null;
     cartons_per_pallet: number | null;
-    logistics_barcode: string | null;
 }
 
 // ... internal implementation ...
@@ -568,7 +571,7 @@ const ProductDetail = () => {
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                                 <div>
                                                     <span className="block text-slate-500 text-xs mb-1">바코드 (Barcode)</span>
                                                     <span className="font-medium font-mono text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
@@ -578,6 +581,14 @@ const ProductDetail = () => {
                                                 <div>
                                                     <span className="block text-slate-500 text-xs mb-1">단위 중량 (Unit Weight)</span>
                                                     <span className="font-medium">{logistics.product_weight_g ? `${logistics.product_weight_g} g` : '-'}</span>
+                                                </div>
+                                                <div className="col-span-2">
+                                                    <span className="block text-slate-500 text-xs mb-1">단품 규격 W×D×H (mm)</span>
+                                                    <span className="font-medium">
+                                                        {logistics.product_width_mm && logistics.product_depth_mm && logistics.product_height_mm
+                                                            ? `${logistics.product_width_mm} × ${logistics.product_depth_mm} × ${logistics.product_height_mm} mm`
+                                                            : '-'}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </CardContent>
