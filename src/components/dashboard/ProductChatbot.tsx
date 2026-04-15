@@ -152,7 +152,7 @@ async function getBotResponse(text: string): Promise<{ text: string; results: Se
 
   if (results.length === 0) {
     return {
-      text: `'${searchKeyword}' 에 해당하는 제품을 찾지 못했습니다.\n\n💡 검색 팁: 제품명 일부만 입력해보세요\n예) '녹용', '장어', '키즈'",
+      text: "'" + searchKeyword + "' 에 해당하는 제품을 찾지 못했습니다.\n\n💡 검색 팁: 제품명 일부만 입력해보세요\n예) '녹용', '장어', '키즈'",
       results: [],
     };
   }
@@ -167,7 +167,7 @@ async function getBotResponse(text: string): Promise<{ text: string; results: Se
     general: "🔍 전체 정보",
   };
   const intentText = intents.map((i) => intentLabels[i]).join("\n");
-  const responseLabel = searchKeyword !== keyword ? `'${tokens.join(" ")}' 토큰 검색` : `'${searchKeyword}'`;
+  const responseLabel = searchKeyword !== keyword ? "'" + tokens.join(" ") + "' 토큰 검색" : "'" + searchKeyword + "'";
 
   return {
     text: `${responseLabel} 검색 결과 ${results.length}건\n\n${intentText}`,
