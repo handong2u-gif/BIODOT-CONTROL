@@ -167,7 +167,7 @@ async function getBotResponse(text: string): Promise<{ text: string; results: Se
     general: "🔍 전체 정보",
   };
   const intentText = intents.map((i) => intentLabels[i]).join("\n");
-  const responseLabel = searchKeyword !== keyword ? `'${tokens.join(" ")}' 토큰 검색` : `'${searchKeyword}'`;
+  const responseLabel = searchKeyword !== keyword ? "'" + tokens.join(" ") + "' 토큰 검색" : "'" + searchKeyword + "'";
 
   return {
     text: `${responseLabel} 검색 결과 ${results.length}건\n\n${intentText}`,
