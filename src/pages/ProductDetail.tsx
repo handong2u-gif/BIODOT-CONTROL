@@ -363,9 +363,20 @@ const ProductDetail = () => {
                             <div className="space-y-4">
                                 <h3 className="text-sm font-semibold text-slate-900">가격 정보</h3>
                                 <div className="grid grid-cols-2 gap-4">
+                                    {/* 도매가B = 일반 도매가 (주력 단가) */}
+                                    <div className="p-4 rounded-lg bg-indigo-50 border border-indigo-200 col-span-2">
+                                        <span className="text-xs text-indigo-600 font-bold block mb-1">도매가 (B) — 일반 도매</span>
+                                        <span className="text-2xl font-bold text-indigo-800">{formatMoney(product.wholesale_b)}</span>
+                                    </div>
+                                    {/* 도매가A = 위탁가 */}
                                     <div className="p-4 rounded-lg bg-emerald-50/50 border border-emerald-100">
-                                        <span className="text-xs text-emerald-600 font-semibold block mb-1">위탁가(배송비별도)</span>
-                                        <span className="text-2xl font-bold text-emerald-800">{formatMoney(product.wholesale_a)}</span>
+                                        <span className="text-xs text-emerald-600 font-semibold block mb-1">위탁가 (A) — 배송비별도</span>
+                                        <span className="text-xl font-bold text-emerald-800">{formatMoney(product.wholesale_a)}</span>
+                                    </div>
+                                    {/* 도매가C = 초도매가 */}
+                                    <div className="p-4 rounded-lg bg-slate-50 border border-slate-100">
+                                        <span className="text-xs text-slate-400 font-semibold block mb-1">초도매가 (C) — 대량구매</span>
+                                        <span className="text-xl text-slate-600">{formatMoney(product.wholesale_c)}</span>
                                     </div>
                                     <div className="p-4 rounded-lg bg-white border border-slate-200">
                                         <span className="text-xs text-slate-500 block mb-1">소비자가</span>
@@ -374,14 +385,6 @@ const ProductDetail = () => {
                                     <div className="p-4 rounded-lg bg-blue-50/50 border border-blue-100">
                                         <span className="text-xs text-blue-600 font-semibold block mb-1">온라인 판매가</span>
                                         <span className="text-xl font-bold text-blue-800">{formatMoney(product.online_price)}</span>
-                                    </div>
-                                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                                        <span className="text-xs text-slate-400 block mb-1">도매가(月40개 이상)</span>
-                                        <span className="text-lg text-slate-600">{formatMoney(product.wholesale_b)}</span>
-                                    </div>
-                                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                                        <span className="text-xs text-slate-400 block mb-1">초도매가(月500개 이상)</span>
-                                        <span className="text-lg text-slate-600">{formatMoney(product.wholesale_c)}</span>
                                     </div>
                                 </div>
                             </div>

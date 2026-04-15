@@ -19,7 +19,8 @@ interface SearchResult {
   product_name: string;
   spec?: string | null;
   origin_country?: string | null;
-  wholesale_a?: number | null;
+  wholesale_a?: number | null;   // 위탁가
+  wholesale_b?: number | null;   // 일반 도매가 (주력)
   retail_price?: number | null;
   online_price?: number | null;
   stock_status?: string | null;
@@ -87,7 +88,7 @@ async function searchDB(keyword: string, tokens: string[]) {
   // 1단계: 전체 구절로 검색
   const { data: fg1 } = await (supabase as any)
     .from("finished_goods")
-    .select("id, product_name, spec, origin_country, wholesale_a, retail_price, online_price, stock_status, tags, ingredients")
+    .select("id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients")
     .or(`product_name.ilike.%${keyword}%,spec.ilike.%${keyword}%`)
     .limit(5);
 
@@ -114,7 +115,7 @@ async function searchDB(keyword: string, tokens: string[]) {
   for (const token of sortedTokens) {
     const { data: fg2 } = await (supabase as any)
       .from("finished_goods")
-      .select("id, product_name, spec, origin_country, wholesale_a, retail_price, online_price, stock_status, tags, ingredients")
+      .select("id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients")
       .or(`product_name.ilike.%${token}%,spec.ilike.%${token}%,tags.cs.{${token}},ingredients.ilike.%${token}%`)
       .limit(5);
 
@@ -208,14 +209,19 @@ function ResultCard({ item }: { item: SearchResult }) {
         {item.origin_country && (
           <div><span className="text-slate-400">원산지</span> {item.origin_country}</div>
         )}
+        {/* 도매가B = 일반 도매가 (주력 단가) */}
+        {isFinished && (item as any).wholesale_b ? (
+          <div><span className="text-slate-400">도매가</span> <span className="font-bold text-indigo-700">{fmt((item as any).wholesale_b)}</span></div>
+        ) : null}
+        {/* 도매가A = 위탁가 */}
+        {item.wholesale_a ? (
+          <div><span className="text-slate-400">{isFinished ? "위탁가" : "공급단가"}</span> <span className="font-semibold text-emerald-700">{fmt(item.wholesale_a)}</span></div>
+        ) : null}
         {isFinished && item.retail_price ? (
           <div><span className="text-slate-400">소비자가</span> <span className="font-medium text-slate-800">{fmt(item.retail_price)}</span></div>
         ) : null}
         {isFinished && item.online_price ? (
           <div><span className="text-slate-400">온라인가</span> <span className="font-semibold text-blue-700">{fmt(item.online_price)}</span></div>
-        ) : null}
-        {item.wholesale_a ? (
-          <div><span className="text-slate-400">{isFinished ? "위탁가" : "공급단가"}</span> <span className="font-semibold text-emerald-700">{fmt(item.wholesale_a)}</span></div>
         ) : null}
         {isFinished && item.stock_status && (
           <div>
