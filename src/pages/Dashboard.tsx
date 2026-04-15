@@ -1,10 +1,28 @@
 import { StatCard } from "@/components/ui/stat-card";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecentActivities } from "@/components/dashboard/RecentActivities";
-import { SalesOverview } from "@/components/dashboard/SalesOverview";
+import { ProductChatbot } from "@/components/dashboard/ProductChatbot";
 import { Package, Building2, FileText, AlertCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
+  const [productCount, setProductCount] = useState<number | null>(null);
+  const [rawCount, setRawCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { count: fg } = await (supabase as any)
+        .from("finished_goods")
+        .select("*", { count: "exact", head: true });
+      const { count: rm } = await (supabase as any)
+        .from("raw_materials")
+        .select("*", { count: "exact", head: true });
+      setProductCount(fg ?? 0);
+      setRawCount(rm ?? 0);
+    })();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -15,20 +33,18 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="등록 제품"
-          value="128"
-          description="활성 제품 수"
+          title="완제품"
+          value={productCount !== null ? String(productCount) : "…"}
+          description="등록된 완제품 수"
           icon={Package}
           variant="primary"
-          trend={{ value: 5.2, isPositive: true }}
         />
         <StatCard
-          title="거래처"
-          value="67"
-          description="활성 거래처"
+          title="원자재"
+          value={rawCount !== null ? String(rawCount) : "…"}
+          description="등록된 원료 수"
           icon={Building2}
           variant="success"
-          trend={{ value: 3.1, isPositive: true }}
         />
         <StatCard
           title="이번 달 제안서"
@@ -49,12 +65,15 @@ export default function Dashboard() {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+        {/* 챗봇 — 메인 영역 (2/3) */}
+        <div className="lg:col-span-2">
+          <ProductChatbot />
+        </div>
+
+        {/* 우측 사이드 (1/3) */}
+        <div className="space-y-6">
           <QuickActions />
           <RecentActivities />
-        </div>
-        <div>
-          <SalesOverview />
         </div>
       </div>
     </div>
