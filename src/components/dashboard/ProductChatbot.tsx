@@ -83,58 +83,54 @@ function parseQuery(text: string): { keyword: string; tokens: string[]; intents:
   return { keyword, tokens, intents };
 }
 
-// ─── Supabase 검색 (2단계) ────────────────────────────────────────
+// ─── Supabase 검색 (토큰별 개별 ilike) ──────────────────────────
 async function searchDB(keyword: string, tokens: string[]) {
-  // 1단계: 전체 구절로 검색
-  const { data: fg1 } = await (supabase as any)
-    .from("finished_goods")
-    .select("id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients")
-    .or(`product_name.ilike.%${keyword}%,spec.ilike.%${keyword}%`)
-    .limit(5);
+  const searchTerms = (tokens.length > 0 ? tokens : [keyword])
+    .filter((t) => t.length >= 2)
+    .sort((a, b) => b.length - a.length);
 
-  const { data: rm1 } = await (supabase as any)
-    .from("raw_materials")
-    .select("id, product_name, spec, origin_country, wholesale_a")
-    .or(`product_name.ilike.%${keyword}%,spec.ilike.%${keyword}%`)
-    .limit(5);
+  if (searchTerms.length === 0) return [];
 
-  const fg1r = (fg1 || []).map((r: any) => ({ ...r, table: "finished_goods" }));
-  const rm1r = (rm1 || []).map((r: any) => ({ ...r, table: "raw_materials" }));
-
-  if (fg1r.length + rm1r.length > 0) {
-    return [...fg1r, ...rm1r] as SearchResult[];
-  }
-
-  // 2단계: 토큰별 OR 검색 (가장 특이한 토큰 우선)
-  if (tokens.length === 0) return [];
-  const sortedTokens = [...tokens].sort((a, b) => b.length - a.length); // 긴 토큰 우선
+  const seenIds = new Set<string>();
   const allFg: SearchResult[] = [];
   const allRm: SearchResult[] = [];
-  const seenIds = new Set<string>();
 
-  for (const token of sortedTokens) {
-    const { data: fg2 } = await (supabase as any)
+  for (const term of searchTerms) {
+    const { data: fg } = await (supabase as any)
       .from("finished_goods")
       .select("id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients")
-      .or(`product_name.ilike.%${token}%,spec.ilike.%${token}%,tags.cs.{${token}},ingredients.ilike.%${token}%`)
+      .ilike("product_name", `%${term}%`)
+      .limit(8);
+
+    const { data: fgIng } = await (supabase as any)
+      .from("finished_goods")
+      .select("id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients")
+      .ilike("ingredients", `%${term}%`)
       .limit(5);
 
-    const { data: rm2 } = await (supabase as any)
+    const { data: rm } = await (supabase as any)
       .from("raw_materials")
       .select("id, product_name, spec, origin_country, wholesale_a")
-      .or(`product_name.ilike.%${token}%,spec.ilike.%${token}%`)
-      .limit(3);
+      .ilike("product_name", `%${term}%`)
+      .limit(5);
 
-    for (const r of fg2 || []) {
-      if (!seenIds.has(`fg-${r.id}`)) { seenIds.add(`fg-${r.id}`); allFg.push({ ...r, table: "finished_goods" }); }
+    for (const r of [...(fg || []), ...(fgIng || [])]) {
+      if (!seenIds.has(`fg-${r.id}`)) {
+        seenIds.add(`fg-${r.id}`);
+        allFg.push({ ...r, table: "finished_goods" });
+      }
     }
-    for (const r of rm2 || []) {
-      if (!seenIds.has(`rm-${r.id}`)) { seenIds.add(`rm-${r.id}`); allRm.push({ ...r, table: "raw_materials" }); }
+    for (const r of rm || []) {
+      if (!seenIds.has(`rm-${r.id}`)) {
+        seenIds.add(`rm-${r.id}`);
+        allRm.push({ ...r, table: "raw_materials" });
+      }
     }
-    if (allFg.length + allRm.length >= 5) break;
+    if (allFg.length + allRm.length >= 6) break;
   }
   return [...allFg, ...allRm];
 }
+
 
 // ─── 봇 응답 생성 ─────────────────────────────────────────────────
 async function getBotResponse(text: string): Promise<{ text: string; results: SearchResult[] }> {
