@@ -34,76 +34,142 @@ const fmt = (n: number | null | undefined) => {
   return new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW" }).format(n);
 };
 
-// ─── 질문 분석 ────────────────────────────────────────────────────
-function parseQuery(text: string): { keyword: string; intent: string } {
-  const t = text.toLowerCase();
-  let intent = "general";
-  if (/가격|단가|원가|공급가|도매|소비자|판매가/.test(t)) intent = "price";
-  else if (/규격|사이즈|크기|용량|ml|g\b|포|환|스틱/.test(t)) intent = "spec";
-  else if (/성분|원재료|함량|원료/.test(t)) intent = "ingredients";
-  else if (/재고|입고|품절|상태/.test(t)) intent = "stock";
-  else if (/물류|바코드|카톤|입수|박스/.test(t)) intent = "logistics";
+// ─── 정지어 사전 ─────────────────────────────────────────────────
+// 의도 키워드 (검색어에서 제거되어야 할 기능어)
+const INTENT_WORDS = [
+  "가격", "단가", "원가", "공급가", "도매가", "도매", "소비자가", "소비자", "판매가",
+  "온라인가", "위탁가", "공급단가",
+  "규격", "사이즈", "크기", "치수", "크기", "용량",
+  "성분", "원재료", "원재료명", "함량", "원료",
+  "재고", "입고", "품절", "상태",
+  "물류", "바코드", "카톤", "입수", "박스",
+  "제품", "정보",
+];
+// 불필요 단어 (조사/어미/일반 동사)
+const STOP_WORDS = [
+  "알려줘", "알려주세요", "가르쳐줘", "가르쳐주세요", "뭐야", "어때",
+  "검색", "찾아줘", "찾아주세요", "보여줘", "보여주세요",
+  "이랑", "하고", "이고", "이랑", "랑", "과", "와", "도",
+  "어디야", "있어", "인가요", "입니까", "인지",
+];
 
-  // 키워드에서 불필요한 조사/동사 제거
-  const keyword = text
-    .replace(/가격|단가|원가|공급가|도매가|소비자가|판매가|규격|사이즈|크기|성분|원재료|함량|재고|물류|정보|알려줘|가르쳐줘|뭐야|어때|검색|찾아줘|보여줘/g, "")
-    .replace(/[은는이가을를의도]/g, " ")
-    .trim()
-    .replace(/\s+/g, " ")
-    .trim();
+// ─── 질문 분석 (멀티 인텐트) ─────────────────────────────────────
+function parseQuery(text: string): { keyword: string; tokens: string[]; intents: string[] } {
+  const t = text;
 
-  return { keyword, intent };
+  // 멀티 인텐트 감지
+  const intents: string[] = [];
+  if (/가격|단가|원가|공급가|도매|소비자가|판매가|위탁가|온라인가/.test(t)) intents.push("price");
+  if (/규격|사이즈|크기|치수|mm|cm|ml|g(?!\w)/.test(t)) intents.push("spec");
+  if (/성분|원재료|함량/.test(t)) intents.push("ingredients");
+  if (/재고|입고|품절|상태/.test(t)) intents.push("stock");
+  if (/물류|바코드|카톤|입수|박스/.test(t)) intents.push("logistics");
+  if (intents.length === 0) intents.push("general");
+
+  // 키워드 추출: 정지어 & 의도어 제거
+  let cleaned = t;
+  [...INTENT_WORDS, ...STOP_WORDS].forEach((w) => {
+    cleaned = cleaned.replace(new RegExp(w, "g"), " ");
+  });
+  // 조사 단독 글자 제거 (한 글자짜리 조사)
+  cleaned = cleaned.replace(/\s[은는이가을를의]{1}\s/g, " ");
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+
+  // 토큰화 (2글자 이상만 의미있는 키워드로)
+  const tokens = cleaned.split(" ").filter((t) => t.length >= 2);
+  const keyword = tokens.join(" ");
+
+  return { keyword, tokens, intents };
 }
 
-// ─── 봇 응답 생성 ─────────────────────────────────────────────────
-async function getBotResponse(text: string): Promise<{ text: string; results: SearchResult[] }> {
-  const { keyword, intent } = parseQuery(text);
-  const lowerText = text.toLowerCase();
-
-  if (!keyword || keyword.length < 1) {
-    return {
-      text: "제품명이나 성분명을 포함해서 다시 질문해 주세요!\n예: '녹용 가격', '장어진액 규격', '흑염소 성분'",
-      results: [],
-    };
-  }
-
-  // finished_goods 검색
-  const { data: fg } = await (supabase as any)
+// ─── Supabase 검색 (2단계) ────────────────────────────────────────
+async function searchDB(keyword: string, tokens: string[]) {
+  // 1단계: 전체 구절로 검색
+  const { data: fg1 } = await (supabase as any)
     .from("finished_goods")
     .select("id, product_name, spec, origin_country, wholesale_a, retail_price, online_price, stock_status, tags, ingredients")
-    .or(`product_name.ilike.%${keyword}%,spec.ilike.%${keyword}%,tags.cs.{${keyword}},ingredients.ilike.%${keyword}%`)
+    .or(`product_name.ilike.%${keyword}%,spec.ilike.%${keyword}%`)
     .limit(5);
 
-  // raw_materials 검색
-  const { data: rm } = await (supabase as any)
+  const { data: rm1 } = await (supabase as any)
     .from("raw_materials")
     .select("id, product_name, spec, origin_country, wholesale_a")
     .or(`product_name.ilike.%${keyword}%,spec.ilike.%${keyword}%`)
     .limit(5);
 
-  const fgResults: SearchResult[] = (fg || []).map((r: any) => ({ ...r, table: "finished_goods" }));
-  const rmResults: SearchResult[] = (rm || []).map((r: any) => ({ ...r, table: "raw_materials" }));
-  const results = [...fgResults, ...rmResults];
+  const fg1r = (fg1 || []).map((r: any) => ({ ...r, table: "finished_goods" }));
+  const rm1r = (rm1 || []).map((r: any) => ({ ...r, table: "raw_materials" }));
 
-  if (results.length === 0) {
+  if (fg1r.length + rm1r.length > 0) {
+    return [...fg1r, ...rm1r] as SearchResult[];
+  }
+
+  // 2단계: 토큰별 OR 검색 (가장 특이한 토큰 우선)
+  if (tokens.length === 0) return [];
+  const sortedTokens = [...tokens].sort((a, b) => b.length - a.length); // 긴 토큰 우선
+  const allFg: SearchResult[] = [];
+  const allRm: SearchResult[] = [];
+  const seenIds = new Set<string>();
+
+  for (const token of sortedTokens) {
+    const { data: fg2 } = await (supabase as any)
+      .from("finished_goods")
+      .select("id, product_name, spec, origin_country, wholesale_a, retail_price, online_price, stock_status, tags, ingredients")
+      .or(`product_name.ilike.%${token}%,spec.ilike.%${token}%,tags.cs.{${token}},ingredients.ilike.%${token}%`)
+      .limit(5);
+
+    const { data: rm2 } = await (supabase as any)
+      .from("raw_materials")
+      .select("id, product_name, spec, origin_country, wholesale_a")
+      .or(`product_name.ilike.%${token}%,spec.ilike.%${token}%`)
+      .limit(3);
+
+    for (const r of fg2 || []) {
+      if (!seenIds.has(`fg-${r.id}`)) { seenIds.add(`fg-${r.id}`); allFg.push({ ...r, table: "finished_goods" }); }
+    }
+    for (const r of rm2 || []) {
+      if (!seenIds.has(`rm-${r.id}`)) { seenIds.add(`rm-${r.id}`); allRm.push({ ...r, table: "raw_materials" }); }
+    }
+    if (allFg.length + allRm.length >= 5) break;
+  }
+  return [...allFg, ...allRm];
+}
+
+// ─── 봇 응답 생성 ─────────────────────────────────────────────────
+async function getBotResponse(text: string): Promise<{ text: string; results: SearchResult[] }> {
+  const { keyword, tokens, intents } = parseQuery(text);
+
+  if (tokens.length === 0 && keyword.length < 1) {
     return {
-      text: `'${keyword}' 에 해당하는 제품을 찾지 못했습니다.\n다른 키워드로 검색해 보시겠어요?`,
+      text: "제품명이나 성분명을 포함해서 질문해 주세요!\n예) '뉴질랜드 녹용 가격', '장어진액 규격', '흑염소 성분'",
       results: [],
     };
   }
 
-  // 의도에 따른 응답 생성
-  const intentGuide: Record<string, string> = {
-    price: "💰 가격 정보입니다.",
-    spec: "📐 규격 정보입니다.",
-    ingredients: "🧪 성분 정보입니다.",
-    stock: "📦 재고 상태입니다.",
-    logistics: "🚚 물류 정보는 제품 상세 페이지 > 물류 탭을 확인해 주세요.",
-    general: "🔍 검색 결과입니다.",
+  const searchKeyword = keyword || tokens[0] || text.trim();
+  const results = await searchDB(searchKeyword, tokens);
+
+  if (results.length === 0) {
+    return {
+      text: `'${searchKeyword}' 에 해당하는 제품을 찾지 못했습니다.\n\n💡 검색 팁: 제품명 일부만 입력해보세요\n예) '녹용', '장어', '키즈'",
+      results: [],
+    };
+  }
+
+  // 멀티 인텐트 응답 메시지 생성
+  const intentLabels: Record<string, string> = {
+    price: "💰 가격 (위탁가·소비자가·온라인가 포함)",
+    spec: "📐 제품 규격 (상세 페이지 > 물류 탭에서 치수 확인 가능)",
+    ingredients: "🧪 원재료 성분",
+    stock: "📦 재고 상태",
+    logistics: "🚚 물류 정보 (상세 페이지 > 물류 탭)",
+    general: "🔍 전체 정보",
   };
+  const intentText = intents.map((i) => intentLabels[i]).join("\n");
+  const responseLabel = searchKeyword !== keyword ? `'${tokens.join(" ")}' 토큰 검색` : `'${searchKeyword}'`;
 
   return {
-    text: `'${keyword}' 검색 결과 ${results.length}건 — ${intentGuide[intent]}`,
+    text: `${responseLabel} 검색 결과 ${results.length}건\n\n${intentText}`,
     results,
   };
 }
