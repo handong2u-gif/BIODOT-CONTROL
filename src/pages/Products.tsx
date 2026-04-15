@@ -199,7 +199,7 @@ const Products = () => {
           try {
             // Processing updates using RPC for guaranteed permissions
             const promises = updates.map(u =>
-              supabase.rpc('update_product_sort_order', {
+              (supabase as any).rpc('update_product_sort_order', {
                 p_id: u.id,
                 p_sort_order: u.sort_order
               })

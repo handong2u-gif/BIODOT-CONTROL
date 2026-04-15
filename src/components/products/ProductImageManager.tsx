@@ -52,7 +52,7 @@ export function ProductImageManager({ product, tableName, isAdmin, onUpdate, tri
 
             // 3. Update Database
             const column = type === 'thumbnail' ? 'thumbnail_url' : 'detail_image_url';
-            const { error: dbError } = await supabase
+            const { error: dbError } = await (supabase as any)
                 .from(tableName)
                 .update({ [column]: publicUrl })
                 .eq('id', product.id);
