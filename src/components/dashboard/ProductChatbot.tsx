@@ -11,6 +11,7 @@ interface Message {
   role: "user" | "bot";
   text: string;
   results?: SearchResult[];
+  intents?: string[];  // 사용자 의도 (가격/규격/성분 등)
   timestamp: Date;
 }
 
@@ -237,11 +238,12 @@ async function getBotResponse(text: string): Promise<{ text: string; results: Se
   return {
     text: `${responseLabel} 검색 결과 ${results.length}건\n\n${intentText}`,
     results,
+    intents,
   };
 }
 
 // ─── 물류 정보 패널 ──────────────────────────────────────────────
-function LogisticsPanel({ lg }: { lg: LogisticsInfo }) {
+function LogisticsPanel({ lg, highlighted }: { lg: LogisticsInfo; highlighted?: boolean }) {
   const hasDimensions = lg.product_width_mm || lg.product_depth_mm || lg.product_height_mm;
   const hasCarton = lg.carton_width_mm || lg.carton_depth_mm || lg.carton_height_mm;
   const hasAny = lg.logistics_barcode || lg.storage_condition || lg.shelf_life_note ||
@@ -251,8 +253,14 @@ function LogisticsPanel({ lg }: { lg: LogisticsInfo }) {
   if (!hasAny) return null;
 
   return (
-    <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
-      <p className="text-xs font-semibold text-slate-500">📐 규격 / 물류 정보</p>
+    <div className={`mt-3 border-t pt-3 space-y-2 rounded-lg ${
+      highlighted
+        ? "border-blue-200 bg-blue-50/60 px-3 pb-2 -mx-1"
+        : "border-slate-100"
+    }`}>
+      <p className={`text-xs font-semibold ${highlighted ? "text-blue-700" : "text-slate-500"}`}>
+        📐 규격 / 물류 정보
+      </p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-slate-700">
         {lg.logistics_barcode && (
           <div className="col-span-2"><span className="text-slate-400 text-xs mr-1">바코드</span><span className="font-mono text-xs">{lg.logistics_barcode}</span></div>
@@ -269,7 +277,7 @@ function LogisticsPanel({ lg }: { lg: LogisticsInfo }) {
         {hasDimensions && (
           <div className="col-span-2">
             <span className="text-slate-400 text-xs mr-1">제품 치수</span>
-            <span className="font-medium">
+            <span className={`font-bold ${highlighted ? "text-blue-800 text-base" : "font-medium"}`}>
               {[lg.product_width_mm, lg.product_depth_mm, lg.product_height_mm]
                 .map(v => v ? `${v}` : "?").join(" × ")} mm
               {lg.product_weight_g ? ` / ${lg.product_weight_g}g` : ""}
@@ -279,7 +287,7 @@ function LogisticsPanel({ lg }: { lg: LogisticsInfo }) {
         {hasCarton && (
           <div className="col-span-2">
             <span className="text-slate-400 text-xs mr-1">카톤 치수</span>
-            <span className="font-medium">
+            <span className={`${highlighted ? "font-bold text-blue-800" : "font-medium"}`}>
               {[lg.carton_width_mm, lg.carton_depth_mm, lg.carton_height_mm]
                 .map(v => v ? `${v}` : "?").join(" × ")} mm
               {lg.carton_weight_kg ? ` / ${lg.carton_weight_kg}kg` : ""}
@@ -287,10 +295,10 @@ function LogisticsPanel({ lg }: { lg: LogisticsInfo }) {
           </div>
         )}
         {lg.units_per_carton && (
-          <div><span className="text-slate-400 text-xs mr-1">박스 입수</span><span className="font-medium">{lg.units_per_carton}개</span></div>
+          <div><span className="text-slate-400 text-xs mr-1">박스 입수</span><span className={`${highlighted ? "font-bold text-blue-800" : "font-medium"}`}>{lg.units_per_carton}개</span></div>
         )}
         {lg.cartons_per_pallet && (
-          <div><span className="text-slate-400 text-xs mr-1">팔레트 입수</span><span className="font-medium">{lg.cartons_per_pallet}박스</span></div>
+          <div><span className="text-slate-400 text-xs mr-1">팔레트 입수</span><span className={`${highlighted ? "font-bold text-blue-800" : "font-medium"}`}>{lg.cartons_per_pallet}박스</span></div>
         )}
       </div>
     </div>
@@ -298,8 +306,20 @@ function LogisticsPanel({ lg }: { lg: LogisticsInfo }) {
 }
 
 // ─── 결과 카드 ───────────────────────────────────────────────────
-function ResultCard({ item }: { item: SearchResult }) {
+function ResultCard({ item, intents = [] }: { item: SearchResult; intents?: string[] }) {
   const isFinished = item.table === "finished_goods";
+  const hi = (intent: string) => intents.includes(intent);
+  const isPrice    = hi("price");
+  const isIng      = hi("ingredients");
+  const isSpec     = hi("spec") || hi("logistics");
+  const isStock    = hi("stock");
+
+  // 강조 행 래퍼 스타일
+  const hlRow = (active: boolean) =>
+    active
+      ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5 col-span-2 flex flex-wrap gap-x-4 gap-y-1"
+      : "";
+
   return (
     <div
       className="bg-white border border-slate-200 rounded-xl p-4 hover:border-emerald-300 hover:shadow-sm transition-all cursor-pointer group"
@@ -326,45 +346,93 @@ function ResultCard({ item }: { item: SearchResult }) {
       </div>
 
       {/* 데이터 그리드 */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
         {item.spec && (
-          <div><span className="text-slate-400 text-xs">규격  </span><span className="text-slate-700 font-medium">{item.spec}</span></div>
+          <div className={isSpec && !item.logistics ? "rounded-lg bg-blue-50 border border-blue-200 px-2 py-1.5" : ""}>
+            <span className="text-slate-400 text-xs">규격  </span>
+            <span className={`font-medium ${isSpec && !item.logistics ? "text-blue-800 font-bold text-base" : "text-slate-700"}`}>
+              {item.spec}
+            </span>
+          </div>
         )}
         {item.origin_country && (
-          <div><span className="text-slate-400 text-xs">원산지  </span><span className="text-slate-700 font-medium">{item.origin_country}</span></div>
+          <div>
+            <span className="text-slate-400 text-xs">원산지  </span>
+            <span className="text-slate-700 font-medium">{item.origin_country}</span>
+          </div>
         )}
-        {/* 도매가B = 일반 도매가 (주력 단가) */}
+
+        {/* 가격 필드들: price 인텐트면 amber 음영 + 큰 글씨 */}
         {isFinished && (item as any).wholesale_b ? (
-          <div><span className="text-slate-400 text-xs">도매가  </span><span className="font-bold text-indigo-700">{fmt((item as any).wholesale_b)}</span></div>
+          <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
+            <span className="text-slate-400 text-xs">도매가  </span>
+            <span className={`font-bold ${isPrice ? "text-amber-700 text-lg" : "text-indigo-700"}`}>
+              {fmt((item as any).wholesale_b)}
+            </span>
+          </div>
         ) : null}
-        {/* 도매가A = 위탁가 */}
         {item.wholesale_a ? (
-          <div><span className="text-slate-400 text-xs">{isFinished ? "위탁가  " : "공급단가  "}</span><span className="font-semibold text-emerald-700">{fmt(item.wholesale_a)}</span></div>
+          <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
+            <span className="text-slate-400 text-xs">{isFinished ? "위탁가  " : "공급단가  "}</span>
+            <span className={`font-bold ${isPrice ? "text-amber-700 text-lg" : "text-emerald-700"}`}>
+              {fmt(item.wholesale_a)}
+            </span>
+          </div>
         ) : null}
         {isFinished && item.retail_price ? (
-          <div><span className="text-slate-400 text-xs">소비자가  </span><span className="font-medium text-slate-800">{fmt(item.retail_price)}</span></div>
+          <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
+            <span className="text-slate-400 text-xs">소비자가  </span>
+            <span className={`font-bold ${isPrice ? "text-amber-700 text-base" : "font-medium text-slate-800"}`}>
+              {fmt(item.retail_price)}
+            </span>
+          </div>
         ) : null}
         {isFinished && item.online_price ? (
-          <div><span className="text-slate-400 text-xs">온라인가  </span><span className="font-semibold text-blue-700">{fmt(item.online_price)}</span></div>
+          <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
+            <span className="text-slate-400 text-xs">온라인가  </span>
+            <span className={`font-bold ${isPrice ? "text-amber-700 text-base" : "font-semibold text-blue-700"}`}>
+              {fmt(item.online_price)}
+            </span>
+          </div>
         ) : null}
+
+        {/* 재고: stock 인텐트면 강조 */}
         {isFinished && item.stock_status && (
-          <div>
+          <div className={isStock ? "rounded-lg bg-slate-100 border border-slate-300 px-2 py-1.5" : ""}>
             <span className="text-slate-400 text-xs">재고  </span>
-            <span className={`font-semibold ${item.stock_status === "out_of_stock" || item.stock_status === "품절" ? "text-red-600" : "text-emerald-600"}`}>
+            <span className={`font-bold ${
+              item.stock_status === "out_of_stock" || item.stock_status === "품절"
+                ? "text-red-600 text-base"
+                : isStock ? "text-emerald-600 text-base" : "text-emerald-600"
+            }`}>
               {item.stock_status === "out_of_stock" ? "품절" : item.stock_status}
             </span>
           </div>
         )}
       </div>
 
+      {/* 성분: ingredients 인텐트면 green 배경 + 큰 글씨 */}
       {item.ingredients && (
-        <p className="text-xs text-slate-500 mt-3 line-clamp-2 border-t border-slate-100 pt-2 leading-relaxed">
-          {item.ingredients}
-        </p>
+        <div className={`mt-3 border-t pt-2 ${
+          isIng
+            ? "border-emerald-200 bg-emerald-50/80 rounded-lg px-3 pb-3 -mx-1"
+            : "border-slate-100"
+        }`}>
+          {isIng && (
+            <p className="text-xs font-bold text-emerald-700 mb-1.5">🌿 원재료 성분</p>
+          )}
+          <p className={`leading-relaxed ${
+            isIng
+              ? "text-sm text-emerald-900 font-medium line-clamp-4"
+              : "text-xs text-slate-500 line-clamp-2"
+          }`}>
+            {item.ingredients}
+          </p>
+        </div>
       )}
 
       {/* 규격/물류 정보 패널 */}
-      {item.logistics && <LogisticsPanel lg={item.logistics} />}
+      {item.logistics && <LogisticsPanel lg={item.logistics} highlighted={isSpec} />}
 
       {item.tags && item.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-3">
@@ -456,12 +524,13 @@ export function ProductChatbot() {
     logQuery(query);
 
     try {
-      const { text: botText, results } = await getBotResponse(query);
+      const { text: botText, results, intents } = await getBotResponse(query);
       const botMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "bot",
         text: botText,
         results,
+        intents,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMsg]);
@@ -522,7 +591,7 @@ export function ProductChatbot() {
               {msg.results && msg.results.length > 0 && (
                 <div className="space-y-2.5 w-full">
                   {msg.results.map((r, i) => (
-                    <ResultCard key={i} item={r} />
+                    <ResultCard key={i} item={r} intents={msg.intents} />
                   ))}
                 </div>
               )}
