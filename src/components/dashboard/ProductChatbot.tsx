@@ -377,8 +377,8 @@ function ResultCard({ item }: { item: SearchResult }) {
   );
 }
 
-// ─── 추천 질문 ───────────────────────────────────────────────────
-const SUGGESTIONS = [
+// ─── 기본 추천 질문 (데이터 부족 시 폴백용) ───────────────────────
+const DEFAULT_SUGGESTIONS = [
   "녹용 가격",
   "장어진액 규격",
   "흑염소 성분",
@@ -386,6 +386,29 @@ const SUGGESTIONS = [
   "뉴질랜드 원료",
   "키즈 제품",
 ];
+
+// DB에서 자주 사용되는 쿼리 TOP 6 가져오기
+async function fetchTopSuggestions(): Promise<string[]> {
+  try {
+    const { data, error } = await (supabase as any)
+      .from("chat_queries")
+      .select("query_text")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error || !data || data.length === 0) return [];
+    const freq: Record<string, number> = {};
+    data.forEach(({ query_text }: { query_text: string }) => {
+      const key = query_text.trim();
+      if (key) freq[key] = (freq[key] || 0) + 1;
+    });
+    return Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([q]) => q);
+  } catch {
+    return [];
+  }
+}
 
 // ─── 메인 컴포넌트 ────────────────────────────────────────────────
 export function ProductChatbot() {
@@ -400,8 +423,16 @@ export function ProductChatbot() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 자주 사용되는 쿼리 DB에서 가져오기 (3개 이상이면 기본값 교체)
+  useEffect(() => {
+    fetchTopSuggestions().then((top) => {
+      if (top.length >= 3) setSuggestions(top);
+    });
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -420,6 +451,9 @@ export function ProductChatbot() {
     };
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
+
+    // 쿨리 로깅 (화면 블로콜 없이 백그라운드로)
+    logQuery(query);
 
     try {
       const { text: botText, results } = await getBotResponse(query);
@@ -518,10 +552,10 @@ export function ProductChatbot() {
         <div ref={bottomRef} />
       </div>
 
-      {/* 추천 질문 */}
+      {/* 추천 질문 (DB 데이터 츰면 자동으로 자주 사용하는 질문으로 교체) */}
       {messages.length <= 1 && (
         <div className="px-3 md:px-4 py-2.5 flex gap-2 overflow-x-auto shrink-0 border-t border-slate-100 bg-white">
-          {SUGGESTIONS.map((s) => (
+          {suggestions.map((s) => (
             <button
               key={s}
               onClick={() => send(s)}
