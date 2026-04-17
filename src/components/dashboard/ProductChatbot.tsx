@@ -14,6 +14,23 @@ interface Message {
   timestamp: Date;
 }
 
+interface LogisticsInfo {
+  logistics_barcode?: string | null;
+  storage_condition?: string | null;
+  shelf_life_note?: string | null;
+  packaging_type?: string | null;
+  product_width_mm?: number | null;
+  product_depth_mm?: number | null;
+  product_height_mm?: number | null;
+  product_weight_g?: number | null;
+  carton_width_mm?: number | null;
+  carton_depth_mm?: number | null;
+  carton_height_mm?: number | null;
+  carton_weight_kg?: number | null;
+  units_per_carton?: number | null;
+  cartons_per_pallet?: number | null;
+}
+
 interface SearchResult {
   id: number | string;
   product_name: string;
@@ -27,6 +44,7 @@ interface SearchResult {
   tags?: string[] | null;
   ingredients?: string | null;
   table: "finished_goods" | "raw_materials";
+  logistics?: LogisticsInfo | null;
 }
 
 // ─── 금액 포맷 ────────────────────────────────────────────────────
@@ -40,7 +58,7 @@ const fmt = (n: number | null | undefined) => {
 const INTENT_WORDS = [
   "가격", "단가", "원가", "공급가", "도매가", "도매", "소비자가", "소비자", "판매가",
   "온라인가", "위탁가", "공급단가",
-  "규격", "사이즈", "크기", "치수", "크기", "용량",
+  "규격", "사이즈", "크기", "치수", "용량",
   "성분", "원재료", "원재료명", "함량", "원료",
   "재고", "입고", "품절", "상태",
   "물류", "바코드", "카톤", "입수", "박스",
@@ -67,14 +85,10 @@ function parseQuery(text: string): { keyword: string; tokens: string[]; intents:
   if (/물류|바코드|카톤|입수|박스/.test(t)) intents.push("logistics");
   if (intents.length === 0) intents.push("general");
 
-  // 키워드 추출: 정지어 & 의도어 제거 (글자수가 긴 것부터 처리하여 오작동 방지)
+  // 키워드 추출: 정지어 & 의도어 제거 (긴 것부터 처리하여 오작동 방지)
   let cleaned = t;
   const allRemovals = [...INTENT_WORDS, ...STOP_WORDS].sort((a, b) => b.length - a.length);
-  
   allRemovals.forEach((w) => {
-    // 단어 앞뒤에 공백을 추가하여 교체함으로써 단어 내부의 글자가 지워지는 것 방지 시도
-    // 하지만 한국어는 조사가 붙어있으므로 단순 replace 대신 정교한 처리가 필요함
-    // 여기서는 일단 기존 방식을 유지하되, 정지어 목록을 보수적으로 운영
     cleaned = cleaned.replace(new RegExp(w, "g"), " ");
   });
   // 조사 단독 글자 제거 (한 글자짜리 조사)
@@ -88,26 +102,49 @@ function parseQuery(text: string): { keyword: string; tokens: string[]; intents:
   return { keyword, tokens, intents };
 }
 
-// ─── Supabase 검색 (토큰별 개별 ilike) ──────────────────────────
-async function searchDB(keyword: string, tokens: string[]) {
-  // 1. 검색어 정제 및 우선순위 설정
-  // tokens가 비어있지 않다면 tokens 자체가 의미있는 검색어 묶음임
-  const searchTerms = [];
-  
-  if (keyword && keyword.length >= 2) {
-    searchTerms.push(keyword); // 전체 검색어 우선
+// ─── 물류 정보 조회 ──────────────────────────────────────────────
+async function fetchLogistics(productIds: number[]): Promise<Map<number, LogisticsInfo>> {
+  if (productIds.length === 0) return new Map();
+
+  const { data } = await (supabase as any)
+    .from("product_logistics_specs")
+    .select(`
+      product_id,
+      logistics_barcode,
+      storage_condition,
+      shelf_life_note,
+      packaging_type,
+      product_width_mm,
+      product_depth_mm,
+      product_height_mm,
+      product_weight_g,
+      carton_width_mm,
+      carton_depth_mm,
+      carton_height_mm,
+      carton_weight_kg,
+      units_per_carton,
+      cartons_per_pallet
+    `)
+    .in("product_id", productIds);
+
+  const map = new Map<number, LogisticsInfo>();
+  if (data) {
+    data.forEach((row: any) => {
+      map.set(row.product_id, row);
+    });
   }
-  
+  return map;
+}
+
+// ─── Supabase 검색 ──────────────────────────────────────────────
+async function searchDB(keyword: string, tokens: string[], intents: string[]) {
+  // 검색어 우선순위: 전체 키워드 → 개별 토큰
+  const searchTerms: string[] = [];
+  if (keyword && keyword.length >= 2) searchTerms.push(keyword);
   tokens.forEach(t => {
-    if (t.length >= 2 && t !== keyword) {
-      searchTerms.push(t);
-    }
+    if (t.length >= 2 && t !== keyword) searchTerms.push(t);
   });
-
-  if (searchTerms.length === 0 && keyword.length > 0) {
-    searchTerms.push(keyword);
-  }
-
+  if (searchTerms.length === 0 && keyword.length > 0) searchTerms.push(keyword);
   if (searchTerms.length === 0) return [];
 
   const seenIds = new Set<string>();
@@ -136,27 +173,33 @@ async function searchDB(keyword: string, tokens: string[]) {
       .ilike("product_name", `%${term}%`)
       .limit(5);
 
-    // 중복 제거하며 결과 추가
     for (const r of [...(fg || []), ...(fgIng || [])]) {
       if (!seenIds.has(`fg-${r.id}`)) {
         seenIds.add(`fg-${r.id}`);
-        allFg.push({ ...r, table: "finished_goods" });
+        allFg.push({ ...r, table: "finished_goods", logistics: null });
       }
     }
     for (const r of rm || []) {
       if (!seenIds.has(`rm-${r.id}`)) {
         seenIds.add(`rm-${r.id}`);
-        allRm.push({ ...r, table: "raw_materials" });
+        allRm.push({ ...r, table: "raw_materials", logistics: null });
       }
     }
-    
-    // 충분한 결과가 모이면 중단 (단, 첫 번째 검색어(전체 키워드)에서 결과가 나왔다면 우선 그것들을 보여줌)
     if (allFg.length + allRm.length >= 8) break;
   }
-  
+
+  // 규격·물류 인텐트가 포함된 경우 → 완제품에 대해 물류 정보 추가 조회
+  const needsLogistics = intents.includes("spec") || intents.includes("logistics");
+  if (needsLogistics && allFg.length > 0) {
+    const fgIds = allFg.map(r => r.id as number);
+    const logisticsMap = await fetchLogistics(fgIds);
+    allFg.forEach(r => {
+      r.logistics = logisticsMap.get(r.id as number) ?? null;
+    });
+  }
+
   return [...allFg, ...allRm];
 }
-
 
 // ─── 봇 응답 생성 ─────────────────────────────────────────────────
 async function getBotResponse(text: string): Promise<{ text: string; results: SearchResult[] }> {
@@ -170,7 +213,7 @@ async function getBotResponse(text: string): Promise<{ text: string; results: Se
   }
 
   const searchKeyword = keyword || tokens[0] || text.trim();
-  const results = await searchDB(searchKeyword, tokens);
+  const results = await searchDB(searchKeyword, tokens, intents);
 
   if (results.length === 0) {
     return {
@@ -182,19 +225,76 @@ async function getBotResponse(text: string): Promise<{ text: string; results: Se
   // 멀티 인텐트 응답 메시지 생성
   const intentLabels: Record<string, string> = {
     price: "💰 가격 (위탁가·소비자가·온라인가 포함)",
-    spec: "📐 제품 규격 (상세 페이지 > 물류 탭에서 치수 확인 가능)",
+    spec: "📐 제품 규격 및 치수",
     ingredients: "🧪 원재료 성분",
     stock: "📦 재고 상태",
-    logistics: "🚚 물류 정보 (상세 페이지 > 물류 탭)",
+    logistics: "🚚 물류 정보 (바코드·카톤·치수)",
     general: "🔍 전체 정보",
   };
   const intentText = intents.map((i) => intentLabels[i]).join("\n");
-  const responseLabel = searchKeyword !== keyword ? "'" + tokens.join(" ") + "' 토큰 검색" : "'" + searchKeyword + "'";
+  const responseLabel = "'" + searchKeyword + "'";
 
   return {
     text: `${responseLabel} 검색 결과 ${results.length}건\n\n${intentText}`,
     results,
   };
+}
+
+// ─── 물류 정보 패널 ──────────────────────────────────────────────
+function LogisticsPanel({ lg }: { lg: LogisticsInfo }) {
+  const hasDimensions = lg.product_width_mm || lg.product_depth_mm || lg.product_height_mm;
+  const hasCarton = lg.carton_width_mm || lg.carton_depth_mm || lg.carton_height_mm;
+  const hasAny = lg.logistics_barcode || lg.storage_condition || lg.shelf_life_note ||
+    lg.packaging_type || hasDimensions || hasCarton ||
+    lg.product_weight_g || lg.carton_weight_kg || lg.units_per_carton || lg.cartons_per_pallet;
+
+  if (!hasAny) return null;
+
+  return (
+    <div className="mt-2 border-t border-slate-100 pt-2 space-y-1.5">
+      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">📐 규격 / 물류 정보</p>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
+        {lg.logistics_barcode && (
+          <div className="col-span-2"><span className="text-slate-400">바코드</span> <span className="font-mono">{lg.logistics_barcode}</span></div>
+        )}
+        {lg.packaging_type && (
+          <div><span className="text-slate-400">포장형태</span> {lg.packaging_type}</div>
+        )}
+        {lg.storage_condition && (
+          <div><span className="text-slate-400">보관방법</span> {lg.storage_condition}</div>
+        )}
+        {lg.shelf_life_note && (
+          <div className="col-span-2"><span className="text-slate-400">유통기한</span> {lg.shelf_life_note}</div>
+        )}
+        {hasDimensions && (
+          <div className="col-span-2">
+            <span className="text-slate-400">제품 치수</span>{" "}
+            <span>
+              {[lg.product_width_mm, lg.product_depth_mm, lg.product_height_mm]
+                .map(v => v ? `${v}` : "?").join(" × ")} mm
+              {lg.product_weight_g ? ` / ${lg.product_weight_g}g` : ""}
+            </span>
+          </div>
+        )}
+        {hasCarton && (
+          <div className="col-span-2">
+            <span className="text-slate-400">카톤 치수</span>{" "}
+            <span>
+              {[lg.carton_width_mm, lg.carton_depth_mm, lg.carton_height_mm]
+                .map(v => v ? `${v}` : "?").join(" × ")} mm
+              {lg.carton_weight_kg ? ` / ${lg.carton_weight_kg}kg` : ""}
+            </span>
+          </div>
+        )}
+        {lg.units_per_carton && (
+          <div><span className="text-slate-400">박스 입수</span> {lg.units_per_carton}개</div>
+        )}
+        {lg.cartons_per_pallet && (
+          <div><span className="text-slate-400">팔레트 입수</span> {lg.cartons_per_pallet}박스</div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ─── 결과 카드 ───────────────────────────────────────────────────
@@ -260,6 +360,9 @@ function ResultCard({ item }: { item: SearchResult }) {
           {item.ingredients}
         </p>
       )}
+
+      {/* 규격/물류 정보 패널 (spec 또는 logistics 인텐트일 때만 데이터가 들어옴) */}
+      {item.logistics && <LogisticsPanel lg={item.logistics} />}
 
       {item.tags && item.tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
