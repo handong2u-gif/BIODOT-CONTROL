@@ -251,25 +251,25 @@ function LogisticsPanel({ lg }: { lg: LogisticsInfo }) {
   if (!hasAny) return null;
 
   return (
-    <div className="mt-2 border-t border-slate-100 pt-2 space-y-1.5">
-      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">📐 규격 / 물류 정보</p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
+    <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
+      <p className="text-xs font-semibold text-slate-500">📐 규격 / 물류 정보</p>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-slate-700">
         {lg.logistics_barcode && (
-          <div className="col-span-2"><span className="text-slate-400">바코드</span> <span className="font-mono">{lg.logistics_barcode}</span></div>
+          <div className="col-span-2"><span className="text-slate-400 text-xs mr-1">바코드</span><span className="font-mono text-xs">{lg.logistics_barcode}</span></div>
         )}
         {lg.packaging_type && (
-          <div><span className="text-slate-400">포장형태</span> {lg.packaging_type}</div>
+          <div><span className="text-slate-400 text-xs mr-1">포장형태</span>{lg.packaging_type}</div>
         )}
         {lg.storage_condition && (
-          <div><span className="text-slate-400">보관방법</span> {lg.storage_condition}</div>
+          <div><span className="text-slate-400 text-xs mr-1">보관방법</span>{lg.storage_condition}</div>
         )}
         {lg.shelf_life_note && (
-          <div className="col-span-2"><span className="text-slate-400">유통기한</span> {lg.shelf_life_note}</div>
+          <div className="col-span-2"><span className="text-slate-400 text-xs mr-1">유통기한</span>{lg.shelf_life_note}</div>
         )}
         {hasDimensions && (
           <div className="col-span-2">
-            <span className="text-slate-400">제품 치수</span>{" "}
-            <span>
+            <span className="text-slate-400 text-xs mr-1">제품 치수</span>
+            <span className="font-medium">
               {[lg.product_width_mm, lg.product_depth_mm, lg.product_height_mm]
                 .map(v => v ? `${v}` : "?").join(" × ")} mm
               {lg.product_weight_g ? ` / ${lg.product_weight_g}g` : ""}
@@ -278,8 +278,8 @@ function LogisticsPanel({ lg }: { lg: LogisticsInfo }) {
         )}
         {hasCarton && (
           <div className="col-span-2">
-            <span className="text-slate-400">카톤 치수</span>{" "}
-            <span>
+            <span className="text-slate-400 text-xs mr-1">카톤 치수</span>
+            <span className="font-medium">
               {[lg.carton_width_mm, lg.carton_depth_mm, lg.carton_height_mm]
                 .map(v => v ? `${v}` : "?").join(" × ")} mm
               {lg.carton_weight_kg ? ` / ${lg.carton_weight_kg}kg` : ""}
@@ -287,10 +287,10 @@ function LogisticsPanel({ lg }: { lg: LogisticsInfo }) {
           </div>
         )}
         {lg.units_per_carton && (
-          <div><span className="text-slate-400">박스 입수</span> {lg.units_per_carton}개</div>
+          <div><span className="text-slate-400 text-xs mr-1">박스 입수</span><span className="font-medium">{lg.units_per_carton}개</span></div>
         )}
         {lg.cartons_per_pallet && (
-          <div><span className="text-slate-400">팔레트 입수</span> {lg.cartons_per_pallet}박스</div>
+          <div><span className="text-slate-400 text-xs mr-1">팔레트 입수</span><span className="font-medium">{lg.cartons_per_pallet}박스</span></div>
         )}
       </div>
     </div>
@@ -302,53 +302,55 @@ function ResultCard({ item }: { item: SearchResult }) {
   const isFinished = item.table === "finished_goods";
   return (
     <div
-      className="bg-white border border-slate-200 rounded-xl p-3 hover:border-emerald-300 hover:shadow-sm transition-all cursor-pointer group"
+      className="bg-white border border-slate-200 rounded-xl p-4 hover:border-emerald-300 hover:shadow-sm transition-all cursor-pointer group"
       onClick={() => isFinished && (window.location.href = `/products/${item.id}`)}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-1.5">
+      {/* 제품명 + 뱃지 */}
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
           {isFinished ? (
-            <Package className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <Package className="w-4 h-4 text-emerald-600 shrink-0" />
           ) : (
-            <Boxes className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <Boxes className="w-4 h-4 text-blue-600 shrink-0" />
           )}
-          <span className="font-semibold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors line-clamp-1">
+          <span className="font-bold text-slate-900 text-base group-hover:text-emerald-700 transition-colors leading-snug">
             {item.product_name}
           </span>
         </div>
         <Badge
           variant="outline"
-          className={`text-[10px] shrink-0 ${isFinished ? "border-emerald-200 text-emerald-700 bg-emerald-50" : "border-blue-200 text-blue-700 bg-blue-50"}`}
+          className={`text-xs shrink-0 px-2 py-0.5 font-medium ${isFinished ? "border-emerald-200 text-emerald-700 bg-emerald-50" : "border-blue-200 text-blue-700 bg-blue-50"}`}
         >
           {isFinished ? "완제품" : "원료"}
         </Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
+      {/* 데이터 그리드 */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         {item.spec && (
-          <div><span className="text-slate-400">규격</span> {item.spec}</div>
+          <div><span className="text-slate-400 text-xs">규격  </span><span className="text-slate-700 font-medium">{item.spec}</span></div>
         )}
         {item.origin_country && (
-          <div><span className="text-slate-400">원산지</span> {item.origin_country}</div>
+          <div><span className="text-slate-400 text-xs">원산지  </span><span className="text-slate-700 font-medium">{item.origin_country}</span></div>
         )}
         {/* 도매가B = 일반 도매가 (주력 단가) */}
         {isFinished && (item as any).wholesale_b ? (
-          <div><span className="text-slate-400">도매가</span> <span className="font-bold text-indigo-700">{fmt((item as any).wholesale_b)}</span></div>
+          <div><span className="text-slate-400 text-xs">도매가  </span><span className="font-bold text-indigo-700">{fmt((item as any).wholesale_b)}</span></div>
         ) : null}
         {/* 도매가A = 위탁가 */}
         {item.wholesale_a ? (
-          <div><span className="text-slate-400">{isFinished ? "위탁가" : "공급단가"}</span> <span className="font-semibold text-emerald-700">{fmt(item.wholesale_a)}</span></div>
+          <div><span className="text-slate-400 text-xs">{isFinished ? "위탁가  " : "공급단가  "}</span><span className="font-semibold text-emerald-700">{fmt(item.wholesale_a)}</span></div>
         ) : null}
         {isFinished && item.retail_price ? (
-          <div><span className="text-slate-400">소비자가</span> <span className="font-medium text-slate-800">{fmt(item.retail_price)}</span></div>
+          <div><span className="text-slate-400 text-xs">소비자가  </span><span className="font-medium text-slate-800">{fmt(item.retail_price)}</span></div>
         ) : null}
         {isFinished && item.online_price ? (
-          <div><span className="text-slate-400">온라인가</span> <span className="font-semibold text-blue-700">{fmt(item.online_price)}</span></div>
+          <div><span className="text-slate-400 text-xs">온라인가  </span><span className="font-semibold text-blue-700">{fmt(item.online_price)}</span></div>
         ) : null}
         {isFinished && item.stock_status && (
           <div>
-            <span className="text-slate-400">재고</span>{" "}
-            <span className={item.stock_status === "out_of_stock" || item.stock_status === "품절" ? "text-red-600 font-semibold" : "text-emerald-600"}>
+            <span className="text-slate-400 text-xs">재고  </span>
+            <span className={`font-semibold ${item.stock_status === "out_of_stock" || item.stock_status === "품절" ? "text-red-600" : "text-emerald-600"}`}>
               {item.stock_status === "out_of_stock" ? "품절" : item.stock_status}
             </span>
           </div>
@@ -356,18 +358,18 @@ function ResultCard({ item }: { item: SearchResult }) {
       </div>
 
       {item.ingredients && (
-        <p className="text-[10px] text-slate-400 mt-2 line-clamp-2 border-t border-slate-100 pt-1.5">
+        <p className="text-xs text-slate-500 mt-3 line-clamp-2 border-t border-slate-100 pt-2 leading-relaxed">
           {item.ingredients}
         </p>
       )}
 
-      {/* 규격/물류 정보 패널 (spec 또는 logistics 인텐트일 때만 데이터가 들어옴) */}
+      {/* 규격/물류 정보 패널 */}
       {item.logistics && <LogisticsPanel lg={item.logistics} />}
 
       {item.tags && item.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
-          {item.tags.slice(0, 3).map((t, i) => (
-            <span key={i} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">#{t}</span>
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {item.tags.slice(0, 4).map((t, i) => (
+            <span key={i} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">#{t}</span>
           ))}
         </div>
       )}
@@ -441,39 +443,39 @@ export function ProductChatbot() {
   };
 
   return (
-    <div className="flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden" style={{ height: "580px" }}>
+    <div className="flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden" style={{ height: "min(580px, calc(100svh - 160px))" }}>
       {/* 헤더 */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm">
+      <div className="flex items-center gap-3 px-4 md:px-5 py-3 md:py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white shrink-0">
+        <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm shrink-0">
           <Sparkles className="w-4 h-4 text-white" />
         </div>
         <div>
-          <p className="font-semibold text-slate-900 text-sm">제품 AI 검색</p>
-          <p className="text-xs text-slate-400">Supabase DB 실시간 연동</p>
+          <p className="font-bold text-slate-900 text-base">제품 AI 검색</p>
+          <p className="text-xs text-slate-400">DB 실시간 연동</p>
         </div>
-        <span className="ml-auto flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
+        <span className="ml-auto flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
           <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
           온라인
         </span>
       </div>
 
       {/* 메시지 영역 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-slate-50/50">
+      <div className="flex-1 overflow-y-auto px-3 md:px-4 py-4 space-y-5 bg-slate-50/50">
         {messages.map((msg) => (
-          <div key={msg.id} className={`flex gap-2.5 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+          <div key={msg.id} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
             {/* 아바타 */}
             <div
-              className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+              className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
                 msg.role === "bot" ? "bg-emerald-100 text-emerald-700" : "bg-slate-700 text-white"
               }`}
             >
-              {msg.role === "bot" ? <Bot className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+              {msg.role === "bot" ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
             </div>
 
-            <div className={`flex flex-col gap-2 max-w-[85%] ${msg.role === "user" ? "items-end" : ""}`}>
+            <div className={`flex flex-col gap-2 max-w-[88%] ${msg.role === "user" ? "items-end" : ""}`}>
               {/* 말풍선 */}
               <div
-                className={`px-4 py-2.5 rounded-2xl text-sm whitespace-pre-line leading-relaxed ${
+                className={`px-4 py-3 rounded-2xl text-sm md:text-[15px] whitespace-pre-line leading-relaxed ${
                   msg.role === "bot"
                     ? "bg-white border border-slate-200 text-slate-800 rounded-tl-sm"
                     : "bg-emerald-600 text-white rounded-tr-sm"
@@ -484,14 +486,14 @@ export function ProductChatbot() {
 
               {/* 검색 결과 카드 */}
               {msg.results && msg.results.length > 0 && (
-                <div className="space-y-2 w-full">
+                <div className="space-y-2.5 w-full">
                   {msg.results.map((r, i) => (
                     <ResultCard key={i} item={r} />
                   ))}
                 </div>
               )}
 
-              <span className="text-[10px] text-slate-400">
+              <span className="text-xs text-slate-400">
                 {msg.timestamp.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
               </span>
             </div>
@@ -518,14 +520,14 @@ export function ProductChatbot() {
 
       {/* 추천 질문 */}
       {messages.length <= 1 && (
-        <div className="px-4 py-2 flex gap-2 overflow-x-auto shrink-0 border-t border-slate-100 bg-white">
+        <div className="px-3 md:px-4 py-2.5 flex gap-2 overflow-x-auto shrink-0 border-t border-slate-100 bg-white">
           {SUGGESTIONS.map((s) => (
             <button
               key={s}
               onClick={() => send(s)}
-              className="shrink-0 text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full hover:bg-emerald-100 transition-colors flex items-center gap-1"
+              className="shrink-0 text-sm px-3.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full hover:bg-emerald-100 active:bg-emerald-200 transition-colors flex items-center gap-1.5"
             >
-              <Search className="w-3 h-3" />
+              <Search className="w-3.5 h-3.5" />
               {s}
             </button>
           ))}
@@ -533,23 +535,23 @@ export function ProductChatbot() {
       )}
 
       {/* 입력창 */}
-      <div className="flex gap-2 px-4 py-3 border-t border-slate-200 bg-white shrink-0">
+      <div className="flex gap-2 px-3 md:px-4 py-3 border-t border-slate-200 bg-white shrink-0">
         <Input
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
           placeholder="제품명, 성분, 가격 등 검색..."
-          className="flex-1 bg-slate-50 border-slate-200 focus:border-emerald-400 text-sm rounded-xl"
+          className="flex-1 bg-slate-50 border-slate-200 focus:border-emerald-400 text-sm md:text-base rounded-xl h-11"
           disabled={loading}
         />
         <Button
           onClick={() => send()}
           disabled={!input.trim() || loading}
           size="icon"
-          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shrink-0"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shrink-0 w-11 h-11"
         >
-          <Send className="w-4 h-4" />
+          <Send className="w-5 h-5" />
         </Button>
       </div>
     </div>
