@@ -50,7 +50,7 @@ const INTENT_WORDS = [
 const STOP_WORDS = [
   "알려줘", "알려주세요", "가르쳐줘", "가르쳐주세요", "뭐야", "어때",
   "검색", "찾아줘", "찾아주세요", "보여줘", "보여주세요",
-  "이랑", "하고", "이고", "이랑", "랑", "과", "와", "도",
+  "이랑", "하고", "이고", "이랑", "랑", "과", "와",
   "어디야", "있어", "인가요", "입니까", "인지",
 ];
 
@@ -67,9 +67,14 @@ function parseQuery(text: string): { keyword: string; tokens: string[]; intents:
   if (/물류|바코드|카톤|입수|박스/.test(t)) intents.push("logistics");
   if (intents.length === 0) intents.push("general");
 
-  // 키워드 추출: 정지어 & 의도어 제거
+  // 키워드 추출: 정지어 & 의도어 제거 (글자수가 긴 것부터 처리하여 오작동 방지)
   let cleaned = t;
-  [...INTENT_WORDS, ...STOP_WORDS].forEach((w) => {
+  const allRemovals = [...INTENT_WORDS, ...STOP_WORDS].sort((a, b) => b.length - a.length);
+  
+  allRemovals.forEach((w) => {
+    // 단어 앞뒤에 공백을 추가하여 교체함으로써 단어 내부의 글자가 지워지는 것 방지 시도
+    // 하지만 한국어는 조사가 붙어있으므로 단순 replace 대신 정교한 처리가 필요함
+    // 여기서는 일단 기존 방식을 유지하되, 정지어 목록을 보수적으로 운영
     cleaned = cleaned.replace(new RegExp(w, "g"), " ");
   });
   // 조사 단독 글자 제거 (한 글자짜리 조사)
@@ -85,9 +90,23 @@ function parseQuery(text: string): { keyword: string; tokens: string[]; intents:
 
 // ─── Supabase 검색 (토큰별 개별 ilike) ──────────────────────────
 async function searchDB(keyword: string, tokens: string[]) {
-  const searchTerms = (tokens.length > 0 ? tokens : [keyword])
-    .filter((t) => t.length >= 2)
-    .sort((a, b) => b.length - a.length);
+  // 1. 검색어 정제 및 우선순위 설정
+  // tokens가 비어있지 않다면 tokens 자체가 의미있는 검색어 묶음임
+  const searchTerms = [];
+  
+  if (keyword && keyword.length >= 2) {
+    searchTerms.push(keyword); // 전체 검색어 우선
+  }
+  
+  tokens.forEach(t => {
+    if (t.length >= 2 && t !== keyword) {
+      searchTerms.push(t);
+    }
+  });
+
+  if (searchTerms.length === 0 && keyword.length > 0) {
+    searchTerms.push(keyword);
+  }
 
   if (searchTerms.length === 0) return [];
 
@@ -96,24 +115,28 @@ async function searchDB(keyword: string, tokens: string[]) {
   const allRm: SearchResult[] = [];
 
   for (const term of searchTerms) {
+    // 완제품 검색 (이름)
     const { data: fg } = await (supabase as any)
       .from("finished_goods")
       .select("id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients")
       .ilike("product_name", `%${term}%`)
-      .limit(8);
+      .limit(10);
 
+    // 완제품 검색 (성분)
     const { data: fgIng } = await (supabase as any)
       .from("finished_goods")
       .select("id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients")
       .ilike("ingredients", `%${term}%`)
       .limit(5);
 
+    // 원료 검색
     const { data: rm } = await (supabase as any)
       .from("raw_materials")
       .select("id, product_name, spec, origin_country, wholesale_a")
       .ilike("product_name", `%${term}%`)
       .limit(5);
 
+    // 중복 제거하며 결과 추가
     for (const r of [...(fg || []), ...(fgIng || [])]) {
       if (!seenIds.has(`fg-${r.id}`)) {
         seenIds.add(`fg-${r.id}`);
@@ -126,8 +149,11 @@ async function searchDB(keyword: string, tokens: string[]) {
         allRm.push({ ...r, table: "raw_materials" });
       }
     }
-    if (allFg.length + allRm.length >= 6) break;
+    
+    // 충분한 결과가 모이면 중단 (단, 첫 번째 검색어(전체 키워드)에서 결과가 나왔다면 우선 그것들을 보여줌)
+    if (allFg.length + allRm.length >= 8) break;
   }
+  
   return [...allFg, ...allRm];
 }
 
