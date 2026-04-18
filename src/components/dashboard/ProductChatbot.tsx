@@ -314,6 +314,14 @@ function ResultCard({ item, intents = [] }: { item: SearchResult; intents?: stri
   const isSpec     = hi("spec") || hi("logistics");
   const isStock    = hi("stock");
 
+  // tags 데이터 타입 변환 방어 처리 (렌더링 에러 방지)
+  let parsedTags: string[] = [];
+  if (Array.isArray(item.tags)) {
+    parsedTags = item.tags;
+  } else if (typeof item.tags === "string") {
+    parsedTags = item.tags.replace(/^{|}$|\[|\]|"/g, '').split(",").map(t => t.trim()).filter(Boolean);
+  }
+
   // 강조 행 래퍼 스타일
   const hlRow = (active: boolean) =>
     active
@@ -434,15 +442,25 @@ function ResultCard({ item, intents = [] }: { item: SearchResult; intents?: stri
       {/* 규격/물류 정보 패널 */}
       {item.logistics && <LogisticsPanel lg={item.logistics} highlighted={isSpec} />}
 
-      {item.tags && item.tags.length > 0 && (
+      {parsedTags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-3">
-          {item.tags.slice(0, 4).map((t, i) => (
+          {parsedTags.slice(0, 4).map((t, i) => (
             <span key={i} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">#{t}</span>
           ))}
         </div>
       )}
     </div>
   );
+}
+
+// ─── 쿼리 로깅 ───────────────────────────────────────────────────
+async function logQuery(query: string) {
+  if (!query) return;
+  try {
+    await (supabase as any).from("chat_queries").insert([{ query_text: query }]);
+  } catch (error) {
+    console.error("logQuery error:", error);
+  }
 }
 
 // ─── 기본 추천 질문 (데이터 부족 시 폴백용) ───────────────────────
@@ -520,8 +538,8 @@ export function ProductChatbot() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
-    // 쿨리 로깅 (화면 블로콜 없이 백그라운드로)
-    logQuery(query);
+    // 쿼리 로깅 (화면 블로킹 없이 백그라운드로)
+    logQuery(query).catch(console.error);
 
     try {
       const { text: botText, results, intents } = await getBotResponse(query);
@@ -534,7 +552,8 @@ export function ProductChatbot() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMsg]);
-    } catch {
+    } catch (error) {
+      console.error("Chatbot query error:", error);
       setMessages((prev) => [
         ...prev,
         { id: Date.now().toString(), role: "bot", text: "오류가 발생했습니다. 다시 시도해 주세요.", results: [], timestamp: new Date() },

@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>HANDONG 박람회 특별가격 / 博覧会特別価格</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Playfair+Display:wght@600;700&display=swap"
+    rel="stylesheet" />
+  <style>
+    :root {
+      --black: #0a0a0a;
+      --deep-green: #1a3a2a;
+      --mid-green: #2d5a3d;
+      --accent-green: #4a9460;
+      --white: #ffffff;
+      --off-white: #f5f5f0;
+      --gold: #c9a84c;
+      --gold-light: #e8c97a;
+      --gray-mid: #b0b0a8;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', 'Noto Sans JP', sans-serif;
+      background-color: var(--black);
+      color: var(--white);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: linear-gradient(135deg, var(--deep-green) 0%, #0f2419 55%, var(--black) 100%);
+      padding: 36px 60px 32px;
+      border-bottom: 1px solid rgba(201, 168, 76, 0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -100px;
+      right: -60px;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(74, 148, 96, .13) 0%, transparent 70%);
+    }
+
+    .header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
+    }
+
+    /* 로고 */
+    .logo-img {
+      height: 100px;
+      filter: brightness(0) invert(1);
+      display: block;
+    }
+
+    /* 중앙 타이틀 */
+    .header-titles {
+      text-align: center;
+      flex: 1;
+    }
+
+    .header-title-ko {
+      font-size: 2.1rem;
+      font-weight: 900;
+      letter-spacing: 0.07em;
+      color: var(--white);
+    }
+
+    .header-title-jp {
+      font-size: 1.1rem;
+      font-weight: 400;
+      letter-spacing: 0.14em;
+      color: var(--gold-light);
+      margin-top: 5px;
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+
+    /* 우측 배지 */
+    .header-badges {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: right;
+    }
+
+    .badge {
+      background: linear-gradient(135deg, var(--gold), #a07a30);
+      color: var(--black);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 20px;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    .badge.green {
+      background: linear-gradient(135deg, var(--accent-green), var(--mid-green));
+      color: var(--white);
+    }
+
+    /* ── NOTICE BAR ── */
+    .notice-bar {
+      background: linear-gradient(90deg, var(--mid-green), var(--deep-green), var(--mid-green));
+      padding: 11px 60px;
+      text-align: center;
+      font-size: 0.86rem;
+      letter-spacing: 0.06em;
+      color: var(--off-white);
+      border-bottom: 1px solid rgba(201, 168, 76, .18);
+    }
+
+    .notice-bar span {
+      color: var(--gold-light);
+      font-weight: 700;
+    }
+
+    /* ── MAIN ── */
+    .main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 44px 40px 56px;
+    }
+
+    /* 3열 그리드 (10개 → 3+3+3+1, 자연스러운 흐름) */
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 26px;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: linear-gradient(160deg, #161f1a 0%, #0e1712 100%);
+      border: 1px solid rgba(74, 148, 96, .22);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+      position: relative;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
+      opacity: 0;
+      transition: opacity .3s;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, .5), 0 0 28px rgba(74, 148, 96, .13);
+      border-color: rgba(74, 148, 96, .48);
+    }
+
+    .card:hover::before {
+      opacity: 1;
+    }
+
+    /* ── 제품 이미지 영역 - 원래 다크톤 배경 ── */
+    .card-image-wrap {
+      background: linear-gradient(145deg, #1c2a21, #131d18);
+      height: 215px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* 하단 그라데이션 (배경→카드배경 자연스럽게 이어지도록) */
+    .card-image-wrap::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      background: linear-gradient(transparent, #0e1712);
+      pointer-events: none;
+    }
+
+    .card-img {
+      max-height: 190px;
+      max-width: 85%;
+      object-fit: contain;
+      transition: transform .4s ease;
+    }
+
+    .card:hover .card-img {
+      transform: scale(1.06);
+    }
+
+    /* ── 카드 바디 ── */
+    .card-body {
+      padding: 18px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .card-name-ko {
+      font-size: 1.0rem;
+      font-weight: 700;
+      color: var(--white);
+      line-height: 1.4;
+      letter-spacing: .02em;
+    }
+
+    .card-name-jp {
+      font-size: .75rem;
+      font-weight: 400;
+      color: var(--gray-mid);
+      margin-top: 3px;
+      font-family: 'Noto Sans JP', sans-serif;
+      letter-spacing: .05em;
+    }
+
+    /* 규격 */
+    .card-spec {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 5px 10px;
+      background: rgba(255, 255, 255, .04);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, .07);
+    }
+
+    .card-spec-label {
+      font-size: .67rem;
+      color: var(--gray-mid);
+      letter-spacing: .05em;
+    }
+
+    .card-spec-label-jp {
+      font-size: .63rem;
+      color: rgba(176, 176, 168, .65);
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+
+    .card-spec-value {
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--off-white);
+      margin-left: auto;
+    }
+
+    /* 가격 구분선 */
+    .price-divider {
+      margin: 13px 0 11px;
+      border: none;
+      border-top: 1px solid rgba(74, 148, 96, .2);
+    }
+
+    /* 일반 가격행 (취소선) */
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .price-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .price-label-ko {
+      font-size: .71rem;
+      color: var(--gray-mid);
+      font-weight: 400;
+    }
+
+    .price-label-jp {
+      font-size: .62rem;
+      color: rgba(176, 176, 168, .62);
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+
+    .price-value {
+      font-size: 1.0rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, .45);
+      text-decoration: line-through;
+      text-decoration-color: rgba(255, 255, 255, .22);
+    }
+
+    /* 박람회 할인 강조행 */
+    .price-row.highlight {
+      background: linear-gradient(135deg, rgba(26, 58, 42, .82), rgba(13, 30, 21, .82));
+      border: 1px solid rgba(74, 148, 96, .38);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-top: 4px;
+      margin-bottom: 0;
+      align-items: center;
+    }
+
+    .price-row.highlight .price-label-ko {
+      font-size: .74rem;
+      font-weight: 600;
+      color: var(--accent-green);
+    }
+
+    .price-row.highlight .price-label-jp {
+      font-size: .63rem;
+      color: rgba(74, 148, 96, .78);
+    }
+
+    .price-value-main {
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--gold-light);
+      letter-spacing: -.01em;
+      line-height: 1;
+    }
+
+    .price-yen {
+      font-size: .95rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-left: 1px;
+    }
+
+    .price-cash-only {
+      font-size: .59rem;
+      color: rgba(201, 168, 76, .58);
+      margin-top: 3px;
+      font-family: 'Noto Sans JP', sans-serif;
+      text-align: right;
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      background: linear-gradient(135deg, #0a1410 0%, var(--black) 100%);
+      border-top: 1px solid rgba(74, 148, 96, .18);
+      padding: 22px 60px;
+      text-align: center;
+    }
+
+    .footer-notes {
+      display: flex;
+      justify-content: center;
+      gap: 36px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .footer-note {
+      font-size: .77rem;
+      color: var(--gray-mid);
+      letter-spacing: .04em;
+    }
+
+    .footer-note strong {
+      color: var(--gold-light);
+    }
+
+    .footer-copy {
+      font-size: .68rem;
+      color: rgba(176, 176, 168, .38);
+      letter-spacing: .08em;
+      margin-top: 7px;
+    }
+
+    /* ══════════════════════════════
+       모바일 반응형 / レスポンシブ
+    ══════════════════════════════ */
+
+    /* 태블릿 (768 ~ 1024px) */
+    @media (max-width: 1024px) {
+      .header {
+        padding: 24px 28px 20px;
+      }
+
+      .header-inner {
+        gap: 18px;
+      }
+
+      .logo-img {
+        height: 72px;
+      }
+
+      .header-title-ko {
+        font-size: 1.65rem;
+      }
+
+      .header-title-jp {
+        font-size: 0.92rem;
+      }
+
+      .notice-bar {
+        padding: 10px 24px;
+        font-size: 0.8rem;
+      }
+
+      .main {
+        padding: 30px 22px 44px;
+      }
+
+      .products-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 18px;
+      }
+
+      .footer {
+        padding: 18px 28px;
+      }
+
+      .footer-notes {
+        gap: 18px;
+      }
+    }
+
+    /* 모바일 (~ 767px) */
+    @media (max-width: 767px) {
+
+      /* 헤더: 세로 스택 */
+      .header {
+        padding: 18px 16px 16px;
+      }
+
+      .header-inner {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        text-align: center;
+      }
+
+      .logo-img {
+        height: 54px;
+      }
+
+      .header-title-ko {
+        font-size: 1.3rem;
+        letter-spacing: 0.04em;
+      }
+
+      .header-title-jp {
+        font-size: 0.82rem;
+        margin-top: 3px;
+      }
+
+      .header-badges {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        text-align: center;
+        gap: 6px;
+      }
+
+      .badge {
+        font-size: 0.64rem;
+        padding: 5px 10px;
+        white-space: normal;
+      }
+
+      /* 공지바 */
+      .notice-bar {
+        padding: 9px 14px;
+        font-size: 0.7rem;
+        line-height: 1.7;
+        letter-spacing: 0.02em;
+      }
+
+      /* 그리드: 2열 유지, 간격 축소 */
+      .main {
+        padding: 18px 12px 32px;
+      }
+
+      .products-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+
+      /* 카드 */
+      .card {
+        border-radius: 12px;
+      }
+
+      .card-image-wrap {
+        height: 155px;
+      }
+
+      .card-img {
+        max-height: 135px;
+        max-width: 88%;
+      }
+
+      .card-image-wrap::after {
+        height: 28px;
+      }
+
+      /* 카드 바디 */
+      .card-body {
+        padding: 11px 11px 13px;
+      }
+
+      .card-name-ko {
+        font-size: 0.8rem;
+        line-height: 1.35;
+      }
+
+      .card-name-jp {
+        font-size: 0.62rem;
+        margin-top: 2px;
+      }
+
+      /* 규격 */
+      .card-spec {
+        padding: 4px 7px;
+        margin-top: 7px;
+        gap: 4px;
+      }
+
+      .card-spec-label {
+        font-size: 0.58rem;
+      }
+
+      .card-spec-label-jp {
+        display: none;
+      }
+
+      /* 모바일에서 일본어 규격 라벨 숨김 */
+      .card-spec-value {
+        font-size: 0.68rem;
+      }
+
+      /* 가격 */
+      .price-divider {
+        margin: 9px 0 7px;
+      }
+
+      .price-label-ko {
+        font-size: 0.62rem;
+      }
+
+      .price-label-jp {
+        font-size: 0.55rem;
+      }
+
+      .price-value {
+        font-size: 0.88rem;
+      }
+
+      .price-row.highlight {
+        padding: 8px 9px;
+        border-radius: 8px;
+      }
+
+      .price-row.highlight .price-label-ko {
+        font-size: 0.65rem;
+      }
+
+      .price-value-main {
+        font-size: 1.22rem;
+      }
+
+      .price-yen {
+        font-size: 0.78rem;
+      }
+
+      .price-cash-only {
+        font-size: 0.52rem;
+        margin-top: 2px;
+      }
+
+      /* 푸터 */
+      .footer {
+        padding: 14px 14px;
+      }
+
+      .footer-notes {
+        flex-direction: column;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .footer-note {
+        font-size: 0.68rem;
+        text-align: center;
+      }
+
+      .footer-copy {
+        font-size: 0.6rem;
+      }
+    }
+
+    /* 소형 폰 (~ 390px): 1열 */
+    @media (max-width: 390px) {
+      .products-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .card-image-wrap {
+        height: 200px;
+      }
+
+      .card-img {
+        max-height: 180px;
+      }
+
+      .card-body {
+        padding: 14px 14px 16px;
+      }
+
+      .card-name-ko {
+        font-size: 1rem;
+      }
+
+      .card-name-jp {
+        font-size: 0.72rem;
+      }
+
+      .card-spec-label-jp {
+        display: inline;
+      }
+
+      .price-value-main {
+        font-size: 1.55rem;
+      }
+
+      .price-yen {
+        font-size: 0.92rem;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+        color: #000;
+      }
+
+      .card {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ▸ HEADER -->
+  <header class="header">
+    <div class="header-inner">
+
+      <!-- 로고 (PNG 파일 - 블랙→화이트 필터 적용) -->
+      <img src="public/handong-logo.png" alt="HANDONG 한동녹용연구소" class="logo-img" />
+
+      <!-- 중앙 타이틀 -->
+      <div class="header-titles">
+        <div class="header-title-ko">박람회 특별가격표</div>
+        <div class="header-title-jp">博覧会　特別価格表</div>
+      </div>
+
+      <!-- 우측 배지 -->
+      <div class="header-badges">
+        <div class="badge">💴 현금 구매 전용 / 現金のみ</div>
+        <div class="badge green">🔖 1,000円単位 · 1,000엔 단위</div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ▸ NOTICE BAR -->
+  <div class="notice-bar">
+    <span>⚠ 현금 구매만 가능합니다 (동전 불가)&nbsp;／&nbsp;現金のみご利用可能です（硬貨不可）&nbsp;／&nbsp;</span>
+    박람회 기간 한정 특가&nbsp;·&nbsp;博覧会期間限定特価
+  </div>
+
+  <!-- ▸ MAIN -->
+  <main class="main">
+    <div class="products-grid">
+
+      <!-- ① 뉴질랜드 아오테아로아 녹용 -->
+      <!-- 소비자가 100,000원 → 10,000円 | 온라인 69,000원 → 7,000円 올림 -->
+      <div class="card">
+        <div class="card-image-wrap">
+          <img class="card-img"
+            src="https://qfvmqotkhjkewdwzibyb.supabase.co/storage/v1/object/public/product-images/finished_goods/3_thumbnail_1768358262257.jpg"
+            alt="뉴질랜드 아오테아로아 녹용" />
+        </div>
+        <div class="card-body">
+          <div class="card-name-ko">뉴질랜드 아오테아로아 녹용</div>
+          <div class="card-name-jp">ニュージーランド アオテアロア 鹿茸</div>
+          <div class="card-spec">
+            <span class="card-spec-label">규격</span>
+            <span class="card-spec-label-jp">内容量</span>
+            <span class="card-spec-value">60ml × 30 pouches</span>
+          </div>
+          <hr class="price-divider" />
+          <div class="price-row">
+            <div class="price-label">
+              <span class="price-label-ko">소비자가</span>
+              <span class="price-label-jp">定価</span>
+            </div>
+            <span class="price-value">10,000円</span>
+          </div>
+          <div class="price-row highlight">
+            <div class="price-label">
+              <span class="price-label-ko">박람회 할인가</span>
+              <span class="price-label-jp">博覧会特別価格</span>
+              <div class="price-cash-only">現金のみ · 현금만</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price-value-main">7,000<span class="price-yen">円</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ② 러시아 알타이 녹용(30포) -->
+      <!-- 소비자가 130,000원 → 13,000円 | 온라인 99,000원 → 10,000円 올림 -->
+      <div class="card">
+        <div class="card-image-wrap">
+          <img class="card-img"
+            src="https://qfvmqotkhjkewdwzibyb.supabase.co/storage/v1/object/public/product-images/finished_goods/1_thumbnail_1768355692482.png"
+            alt="러시아 알타이 녹용 30포" />
+        </div>
+        <div class="card-body">
+          <div class="card-name-ko">러시아 알타이 녹용 (30포)</div>
+          <div class="card-name-jp">ロシア アルタイ 鹿茸（30包）</div>
+          <div class="card-spec">
+            <span class="card-spec-label">규격</span>
+            <span class="card-spec-label-jp">内容量</span>
+            <span class="card-spec-value">60ml × 30 pouches</span>
+          </div>
+          <hr class="price-divider" />
+          <div class="price-row">
+            <div class="price-label">
+              <span class="price-label-ko">소비자가</span>
+              <span class="price-label-jp">定価</span>
+            </div>
+            <span class="price-value">13,000円</span>
+          </div>
+          <div class="price-row highlight">
+            <div class="price-label">
+              <span class="price-label-ko">박람회 할인가</span>
+              <span class="price-label-jp">博覧会特別価格</span>
+              <div class="price-cash-only">現金のみ · 현금만</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price-value-main">10,000<span class="price-yen">円</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ③ 한동 키즈튼튼 녹용칼슘스틱 -->
+      <!-- 소비자가 40,000원 → 4,000円 | 온라인 28,000원 → 3,000円 올림 -->
+      <div class="card">
+        <div class="card-image-wrap">
+          <img class="card-img"
+            src="https://qfvmqotkhjkewdwzibyb.supabase.co/storage/v1/object/public/product-images/finished_goods/6_thumbnail_1768358423551.png"
+            alt="한동 키즈튼튼 녹용칼슘스틱" />
+        </div>
+        <div class="card-body">
+          <div class="card-name-ko">한동 키즈튼튼 녹용칼슘스틱</div>
+          <div class="card-name-jp">HANDONG キッズ 鹿茸カルシウムスティック</div>
+          <div class="card-spec">
+            <span class="card-spec-label">규격</span>
+            <span class="card-spec-label-jp">内容量</span>
+            <span class="card-spec-value">20g × 14 Sticks</span>
+          </div>
+          <hr class="price-divider" />
+          <div class="price-row">
+            <div class="price-label">
+              <span class="price-label-ko">소비자가</span>
+              <span class="price-label-jp">定価</span>
+            </div>
+            <span class="price-value">4,000円</span>
+          </div>
+          <div class="price-row highlight">
+            <div class="price-label">
+              <span class="price-label-ko">박람회 할인가</span>
+              <span class="price-label-jp">博覧会特別価格</span>
+              <div class="price-cash-only">現金のみ · 현금만</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price-value-main">3,000<span class="price-yen">円</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ④ 한동 키즈튼튼 맑은숨 녹용 -->
+      <!-- 소비자가 30,000원 → 3,000円 | 온라인 19,900원 → 2,000円 올림 -->
+      <div class="card">
+        <div class="card-image-wrap">
+          <img class="card-img"
+            src="https://qfvmqotkhjkewdwzibyb.supabase.co/storage/v1/object/public/product-images/finished_goods/7_thumbnail_1768358361346.png"
+            alt="한동 키즈튼튼 맑은숨 녹용" />
+        </div>
+        <div class="card-body">
+          <div class="card-name-ko">한동 키즈튼튼 맑은숨 녹용</div>
+          <div class="card-name-jp">HANDONG キッズ すっきり 鹿茸</div>
+          <div class="card-spec">
+            <span class="card-spec-label">규격</span>
+            <span class="card-spec-label-jp">内容量</span>
+            <span class="card-spec-value">30ml × 10 pouches</span>
+          </div>
+          <hr class="price-divider" />
+          <div class="price-row">
+            <div class="price-label">
+              <span class="price-label-ko">소비자가</span>
+              <span class="price-label-jp">定価</span>
+            </div>
+            <span class="price-value">3,000円</span>
+          </div>
+          <div class="price-row highlight">
+            <div class="price-label">
+              <span class="price-label-ko">박람회 할인가</span>
+              <span class="price-label-jp">博覧会特別価格</span>
+              <div class="price-cash-only">現金のみ · 현금만</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price-value-main">2,000<span class="price-yen">円</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑤ 관절N칼슘 부스팅 젤리 -->
+      <!-- 소비자가 30,000원 → 3,000円 | 온라인 19,900원 → 2,000円 올림 -->
+      <div class="card">
+        <div class="card-image-wrap">
+          <img class="card-img"
+            src="https://qfvmqotkhjkewdwzibyb.supabase.co/storage/v1/object/public/product-images/finished_goods/8_thumbnail_1768358441797.png"
+            alt="관절N칼슘 부스팅 젤리" />
+        </div>
+        <div class="card-body">
+          <div class="card-name-ko">관절N칼슘 부스팅 젤리</div>
+          <div class="card-name-jp">関節N カルシウム ブースティングゼリー</div>
+          <div class="card-spec">
+            <span class="card-spec-label">규격</span>
+            <span class="card-spec-label-jp">内容量</span>
+            <span class="card-spec-value">20g × 10 sticks</span>
+          </div>
+          <hr class="price-divider" />
+          <div class="price-row">
+            <div class="price-label">
+              <span class="price-label-ko">소비자가</span>
+              <span class="price-label-jp">定価</span>
+            </div>
+            <span class="price-value">3,000円</span>
+          </div>
+          <div class="price-row highlight">
+            <div class="price-label">
+              <span class="price-label-ko">박람회 할인가</span>
+              <span class="price-label-jp">博覧会特別価格</span>
+              <div class="price-cash-only">現金のみ · 현금만</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price-value-main">2,000<span class="price-yen">円</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑥ 한동 녹용 더한 흑도라지청 -->
+      <!-- 소비자가 56,000원 → 6,000円 올림 | 온라인 47,900원 → 5,000円 올림 -->
+      <div class="card">
+        <div class="card-image-wrap">
+          <img class="card-img"
+            src="https://qfvmqotkhjkewdwzibyb.supabase.co/storage/v1/object/public/product-images/finished_goods/10_thumbnail_1768358330228.png"
+            alt="한동 녹용 더한 흑도라지청" />
+        </div>
+        <div class="card-body">
+          <div class="card-name-ko">한동 녹용 더한 흑도라지청</div>
+          <div class="card-name-jp">HANDONG 鹿茸 黒桔梗エキス</div>
+          <div class="card-spec">
+            <span class="card-spec-label">규격</span>
+            <span class="card-spec-label-jp">内容量</span>
+            <span class="card-spec-value">250g / jar</span>
+          </div>
+          <hr class="price-divider" />
+          <div class="price-row">
+            <div class="price-label">
+              <span class="price-label-ko">소비자가</span>
+              <span class="price-label-jp">定価</span>
+            </div>
+            <span class="price-value">6,000円</span>
+          </div>
+          <div class="price-row highlight">
+            <div class="price-label">
+              <span class="price-label-ko">박람회 할인가</span>
+              <span class="price-label-jp">博覧会特別価格</span>
+              <div class="price-cash-only">現金のみ · 현금만</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price-value-main">5,000<span class="price-yen">円</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑦ 한동 효력환(10환) -->
+      <!-- 소비자가 60,000원 → 6,000円 | 온라인 45,000원 → 5,000円 -->
+      <div class="card">
+        <div class="card-image-wrap">
+          <img class="card-img"
+            src="https://qfvmqotkhjkewdwzibyb.supabase.co/storage/v1/object/public/product-images/finished_goods/4_thumbnail_1768358291932.png"
+            alt="한동 효력환 10환" />
+        </div>
+        <div class="card-body">
+          <div class="card-name-ko">한동 효력환 (10환)</div>
+          <div class="card-name-jp">HANDONG 効力丸（10丸）</div>
+          <div class="card-spec">
+            <span class="card-spec-label">규격</span>
+            <span class="card-spec-label-jp">内容量</span>
+            <span class="card-spec-value">3.75g × 10 pills</span>
+          </div>
+          <hr class="price-divider" />
+          <div class="price-row">
+            <div class="price-label">
+              <span class="price-label-ko">소비자가</span>
+              <span class="price-label-jp">定価</span>
+            </div>
+            <span class="price-value">6,000円</span>
+          </div>
+          <div class="price-row highlight">
+            <div class="price-label">
+              <span class="price-label-ko">박람회 할인가</span>
+              <span class="price-label-jp">博覧会特別価格</span>
+              <div class="price-cash-only">現金のみ · 현금만</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price-value-main">5,000<span class="price-yen">円</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑧ 한동 효력환(30환) -->
+      <!-- 소비자가 170,000원 → 17,000円 | 온라인 120,000원 → 12,000円 -->
+      <div class="card">
+        <div class="card-image-wrap">
+          <img class="card-img"
+            src="https://qfvmqotkhjkewdwzibyb.supabase.co/storage/v1/object/public/product-images/finished_goods/5_thumbnail_1768358301834.png"
+            alt="한동 효력환 30환" />
+        </div>
+        <div class="card-body">
+          <div class="card-name-ko">한동 효력환 (30환)</div>
+          <div class="card-name-jp">HANDONG 効力丸（30丸）</div>
+          <div class="card-spec">
+            <span class="card-spec-label">규격</span>
+            <span class="card-spec-label-jp">内容量</span>
+            <span class="card-spec-value">3.75g × 30 pills</span>
+          </div>
+          <hr class="price-divider" />
+          <div class="price-row">
+            <div class="price-label">
+              <span class="price-label-ko">소비자가</span>
+              <span class="price-label-jp">定価</span>
+            </div>
+            <span class="price-value">17,000円</span>
+          </div>
+          <div class="price-row highlight">
+            <div class="price-label">
+              <span class="price-label-ko">박람회 할인가</span>
+              <span class="price-label-jp">博覧会特別価格</span>
+              <div class="price-cash-only">現金のみ · 현금만</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price-value-main">12,000<span class="price-yen">円</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑨ 진심명품환(10환) -->
+      <!-- 소비자가 350,000원 → 35,000円 | 온라인 270,000원 → 27,000円 -->
+      <div class="card">
+        <div class="card-image-wrap">
+          <img class="card-img"
+            src="https://qfvmqotkhjkewdwzibyb.supabase.co/storage/v1/object/public/product-images/finished_goods/11_thumbnail_1768358349631.png"
+            alt="진심명품환 10환" />
+        </div>
+        <div class="card-body">
+          <div class="card-name-ko">진심명품환 (10환)</div>
+          <div class="card-name-jp">真心 名品丸（10丸）</div>
+          <div class="card-spec">
+            <span class="card-spec-label">규격</span>
+            <span class="card-spec-label-jp">内容量</span>
+            <span class="card-spec-value">4g × 10 pills</span>
+          </div>
+          <hr class="price-divider" />
+          <div class="price-row">
+            <div class="price-label">
+              <span class="price-label-ko">소비자가</span>
+              <span class="price-label-jp">定価</span>
+            </div>
+            <span class="price-value">35,000円</span>
+          </div>
+          <div class="price-row highlight">
+            <div class="price-label">
+              <span class="price-label-ko">박람회 할인가</span>
+              <span class="price-label-jp">博覧会特別価格</span>
+              <div class="price-cash-only">現金のみ · 현금만</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price-value-main">27,000<span class="price-yen">円</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑩ 한동 녹용 더:한 장어진액 -->
+      <!-- 소비자가 200,000원 → 20,000円 | 온라인 189,000원 → 19,000円 올림 -->
+      <div class="card">
+        <div class="card-image-wrap">
+          <img class="card-img"
+            src="https://qfvmqotkhjkewdwzibyb.supabase.co/storage/v1/object/public/product-images/finished_goods/17_thumbnail_1770276101408.png"
+            alt="한동 녹용 더:한 장어진액" />
+        </div>
+        <div class="card-body">
+          <div class="card-name-ko">한동 녹용 더:한 장어진액</div>
+          <div class="card-name-jp">HANDONG 鹿茸プラス ウナギエキス</div>
+          <div class="card-spec">
+            <span class="card-spec-label">규격</span>
+            <span class="card-spec-label-jp">内容量</span>
+            <span class="card-spec-value">70ml × 30 pouches</span>
+          </div>
+          <hr class="price-divider" />
+          <div class="price-row">
+            <div class="price-label">
+              <span class="price-label-ko">소비자가</span>
+              <span class="price-label-jp">定価</span>
+            </div>
+            <span class="price-value">20,000円</span>
+          </div>
+          <div class="price-row highlight">
+            <div class="price-label">
+              <span class="price-label-ko">박람회 할인가</span>
+              <span class="price-label-jp">博覧会特別価格</span>
+              <div class="price-cash-only">現金のみ · 현금만</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price-value-main">19,000<span class="price-yen">円</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /products-grid -->
+  </main>
+
+  <!-- ▸ FOOTER -->
+  <footer class="footer">
+    <div class="footer-notes">
+      <div class="footer-note">💴 <strong>현금 구매만 가능</strong> / 現金払いのみ</div>
+      <div class="footer-note">🔖 <strong>1,000엔 단위</strong>로 결제 / 1,000円単位のみ</div>
+      <div class="footer-note">📦 <strong>박람회 기간 한정</strong> 특별가 / 会期中限定価格</div>
+      <div class="footer-note">✅ <strong>소비자가</strong> = 정가 / 定価 &nbsp;|&nbsp; <strong>박람회 할인가</strong> = 특별판매가</div>
+    </div>
+    <div class="footer-copy">© HANDONG 한동녹용연구소 · 박람회 한정 가격표 · 무단 복제 금지</div>
+  </footer>
+
+</body>
+
+</html>
