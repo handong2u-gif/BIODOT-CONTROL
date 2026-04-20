@@ -371,35 +371,35 @@ function ResultCard({ item, intents = [] }: { item: SearchResult; intents?: stri
         )}
 
         {/* 가격 필드들: price 인텐트면 amber 음영 + 큰 글씨 */}
-        {isFinished && (item as any).wholesale_b ? (
+        {isFinished && ((item as any).wholesale_b || isPrice) ? (
           <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
             <span className="text-slate-400 text-xs">도매가  </span>
             <span className={`font-bold ${isPrice ? "text-amber-700 text-lg" : "text-indigo-700"}`}>
-              {fmt((item as any).wholesale_b)}
+              {(item as any).wholesale_b ? fmt((item as any).wholesale_b) : <span className="text-sm font-normal text-red-500/80">DB 미입력</span>}
             </span>
           </div>
         ) : null}
-        {item.wholesale_a ? (
+        {(item.wholesale_a || isPrice) ? (
           <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
             <span className="text-slate-400 text-xs">{isFinished ? "위탁가  " : "공급단가  "}</span>
             <span className={`font-bold ${isPrice ? "text-amber-700 text-lg" : "text-emerald-700"}`}>
-              {fmt(item.wholesale_a)}
+              {item.wholesale_a ? fmt(item.wholesale_a) : <span className="text-sm font-normal text-red-500/80">DB 미입력</span>}
             </span>
           </div>
         ) : null}
-        {isFinished && item.retail_price ? (
+        {isFinished && (item.retail_price || isPrice) ? (
           <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
             <span className="text-slate-400 text-xs">소비자가  </span>
             <span className={`font-bold ${isPrice ? "text-amber-700 text-base" : "font-medium text-slate-800"}`}>
-              {fmt(item.retail_price)}
+              {item.retail_price ? fmt(item.retail_price) : <span className="text-sm font-normal text-red-500/80">미입력</span>}
             </span>
           </div>
         ) : null}
-        {isFinished && item.online_price ? (
+        {isFinished && (item.online_price || isPrice) ? (
           <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
             <span className="text-slate-400 text-xs">온라인가  </span>
             <span className={`font-bold ${isPrice ? "text-amber-700 text-base" : "font-semibold text-blue-700"}`}>
-              {fmt(item.online_price)}
+              {item.online_price ? fmt(item.online_price) : <span className="text-sm font-normal text-red-500/80">미입력</span>}
             </span>
           </div>
         ) : null}
