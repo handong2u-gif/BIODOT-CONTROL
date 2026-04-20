@@ -126,7 +126,7 @@ export function AppSidebar() {
               <span className="text-sidebar-primary-foreground font-bold text-lg">B</span>
             </div>
             <div>
-              <h1 className="text-sidebar-foreground font-semibold text-base tracking-tight">Biodotworks</h1>
+              <h1 className="text-sidebar-foreground font-semibold font-heading text-xl tracking-tight">Biodotworks</h1>
               <p className="text-sidebar-muted text-xs font-medium tracking-wide">Desk</p>
             </div>
           </div>
@@ -149,7 +149,7 @@ export function AppSidebar() {
               <span className="text-sidebar-primary-foreground font-bold text-lg">B</span>
             </div>
             <div className="animate-fade-in">
-              <h1 className="text-sidebar-foreground font-semibold text-lg tracking-tight">Biodotworks</h1>
+              <h1 className="text-sidebar-foreground font-semibold font-heading text-2xl tracking-tight">Biodotworks</h1>
               <p className="text-sidebar-muted text-xs font-medium tracking-wide">Desk</p>
             </div>
           </div>
