@@ -12,6 +12,7 @@ interface Message {
   text: string;
   results?: SearchResult[];
   intents?: string[];  // 사용자 의도 (가격/규격/성분 등)
+  rawQuery?: string; // 원본 쿼리
   timestamp: Date;
 }
 
@@ -306,13 +307,20 @@ function LogisticsPanel({ lg, highlighted }: { lg: LogisticsInfo; highlighted?: 
 }
 
 // ─── 결과 카드 ───────────────────────────────────────────────────
-function ResultCard({ item, intents = [] }: { item: SearchResult; intents?: string[] }) {
+function ResultCard({ item, intents = [], rawQuery = "" }: { item: SearchResult; intents?: string[]; rawQuery?: string }) {
   const isFinished = item.table === "finished_goods";
   const hi = (intent: string) => intents.includes(intent);
   const isPrice    = hi("price");
   const isIng      = hi("ingredients");
   const isSpec     = hi("spec") || hi("logistics");
   const isStock    = hi("stock");
+
+  const q = rawQuery || "";
+  const isGeneralPrice = isPrice && !/도매|공급|위탁|소비자|판매가|온라인/.test(q);
+  const askWholesaleB = isGeneralPrice || /도매/.test(q);
+  const askWholesaleA = isGeneralPrice || /공급|위탁|단가|원가/.test(q);
+  const askRetail = isGeneralPrice || /소비자|판매가/.test(q);
+  const askOnline = isGeneralPrice || /온라인/.test(q);
 
   // tags 데이터 타입 변환 방어 처리 (렌더링 에러 방지)
   let parsedTags: string[] = [];
@@ -370,35 +378,35 @@ function ResultCard({ item, intents = [] }: { item: SearchResult; intents?: stri
           </div>
         )}
 
-        {/* 가격 필드들: price 인텐트면 amber 음영 + 큰 글씨 */}
-        {isFinished && ((item as any).wholesale_b || isPrice) ? (
-          <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
-            <span className="text-slate-400 text-xs">도매가  </span>
-            <span className={`font-bold ${isPrice ? "text-amber-700 text-lg" : "text-indigo-700"}`}>
+        {/* 가격 필드들: price 인텐트면 분기하여 강조 */}
+        {isFinished && ((item as any).wholesale_b || askWholesaleB) ? (
+          <div className={askWholesaleB ? "rounded-lg bg-orange-50 border border-orange-200 px-2 py-1.5" : ""}>
+            <span className={askWholesaleB ? "text-orange-800 font-bold text-xs" : "text-slate-400 text-xs"}>도매가  </span>
+            <span className={`font-bold ${askWholesaleB ? "text-orange-700 text-lg" : "font-medium text-slate-700"}`}>
               {(item as any).wholesale_b ? fmt((item as any).wholesale_b) : <span className="text-sm font-normal text-red-500/80">DB 미입력</span>}
             </span>
           </div>
         ) : null}
-        {(item.wholesale_a || isPrice) ? (
-          <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
-            <span className="text-slate-400 text-xs">{isFinished ? "위탁가  " : "공급단가  "}</span>
-            <span className={`font-bold ${isPrice ? "text-amber-700 text-lg" : "text-purple-700"}`}>
+        {(item.wholesale_a || askWholesaleA) ? (
+          <div className={askWholesaleA ? "rounded-lg bg-orange-50 border border-orange-200 px-2 py-1.5" : ""}>
+            <span className={askWholesaleA ? "text-orange-800 font-bold text-xs" : "text-slate-400 text-xs"}>{isFinished ? "위탁가  " : "공급단가  "}</span>
+            <span className={`font-bold ${askWholesaleA ? "text-orange-700 text-lg" : "font-medium text-slate-700"}`}>
               {item.wholesale_a ? fmt(item.wholesale_a) : <span className="text-sm font-normal text-red-500/80">DB 미입력</span>}
             </span>
           </div>
         ) : null}
-        {isFinished && (item.retail_price || isPrice) ? (
-          <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
-            <span className="text-slate-400 text-xs">소비자가  </span>
-            <span className={`font-bold ${isPrice ? "text-amber-700 text-base" : "font-medium text-slate-800"}`}>
+        {isFinished && (item.retail_price || askRetail) ? (
+          <div className={askRetail ? "rounded-lg bg-orange-50 border border-orange-200 px-2 py-1.5" : ""}>
+            <span className={askRetail ? "text-orange-800 font-bold text-xs" : "text-slate-400 text-xs"}>소비자가  </span>
+            <span className={`font-bold ${askRetail ? "text-orange-700 text-base" : "font-medium text-slate-800"}`}>
               {item.retail_price ? fmt(item.retail_price) : <span className="text-sm font-normal text-red-500/80">미입력</span>}
             </span>
           </div>
         ) : null}
-        {isFinished && (item.online_price || isPrice) ? (
-          <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
-            <span className="text-slate-400 text-xs">온라인가  </span>
-            <span className={`font-bold ${isPrice ? "text-amber-700 text-base" : "font-semibold text-blue-700"}`}>
+        {isFinished && (item.online_price || askOnline) ? (
+          <div className={askOnline ? "rounded-lg bg-orange-50 border border-orange-200 px-2 py-1.5" : ""}>
+            <span className={askOnline ? "text-orange-800 font-bold text-xs" : "text-slate-400 text-xs"}>온라인가  </span>
+            <span className={`font-bold ${askOnline ? "text-orange-700 text-base" : "font-semibold text-blue-700"}`}>
               {item.online_price ? fmt(item.online_price) : <span className="text-sm font-normal text-red-500/80">미입력</span>}
             </span>
           </div>
@@ -549,6 +557,7 @@ export function ProductChatbot() {
         text: botText,
         results,
         intents,
+        rawQuery: query,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMsg]);
@@ -610,7 +619,7 @@ export function ProductChatbot() {
               {msg.results && msg.results.length > 0 && (
                 <div className="space-y-2.5 w-full">
                   {msg.results.map((r, i) => (
-                    <ResultCard key={i} item={r} intents={msg.intents} />
+                    <ResultCard key={i} item={r} intents={msg.intents} rawQuery={msg.rawQuery} />
                   ))}
                 </div>
               )}
