@@ -330,24 +330,24 @@ function ResultCard({ item, intents = [] }: { item: SearchResult; intents?: stri
 
   return (
     <div
-      className="bg-white border border-slate-200 rounded-xl p-4 hover:border-emerald-300 hover:shadow-sm transition-all cursor-pointer group"
+      className="bg-white border border-slate-200 rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all cursor-pointer group"
       onClick={() => isFinished && (window.location.href = `/products/${item.id}`)}
     >
       {/* 제품명 + 뱃지 */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
           {isFinished ? (
-            <Package className="w-4 h-4 text-emerald-600 shrink-0" />
+            <Package className="w-4 h-4 text-purple-600 shrink-0" />
           ) : (
             <Boxes className="w-4 h-4 text-blue-600 shrink-0" />
           )}
-          <span className="font-bold text-slate-900 text-base group-hover:text-emerald-700 transition-colors leading-snug">
+          <span className="font-bold text-slate-900 text-base group-hover:text-purple-700 transition-colors leading-snug">
             {item.product_name}
           </span>
         </div>
         <Badge
           variant="outline"
-          className={`text-xs shrink-0 px-2 py-0.5 font-medium ${isFinished ? "border-emerald-200 text-emerald-700 bg-emerald-50" : "border-blue-200 text-blue-700 bg-blue-50"}`}
+          className={`text-xs shrink-0 px-2 py-0.5 font-medium ${isFinished ? "border-purple-200 text-purple-700 bg-purple-50" : "border-blue-200 text-blue-700 bg-blue-50"}`}
         >
           {isFinished ? "완제품" : "원료"}
         </Badge>
@@ -382,7 +382,7 @@ function ResultCard({ item, intents = [] }: { item: SearchResult; intents?: stri
         {(item.wholesale_a || isPrice) ? (
           <div className={isPrice ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5" : ""}>
             <span className="text-slate-400 text-xs">{isFinished ? "위탁가  " : "공급단가  "}</span>
-            <span className={`font-bold ${isPrice ? "text-amber-700 text-lg" : "text-emerald-700"}`}>
+            <span className={`font-bold ${isPrice ? "text-amber-700 text-lg" : "text-purple-700"}`}>
               {item.wholesale_a ? fmt(item.wholesale_a) : <span className="text-sm font-normal text-red-500/80">DB 미입력</span>}
             </span>
           </div>
@@ -411,7 +411,7 @@ function ResultCard({ item, intents = [] }: { item: SearchResult; intents?: stri
             <span className={`font-bold ${
               item.stock_status === "out_of_stock" || item.stock_status === "품절"
                 ? "text-red-600 text-base"
-                : isStock ? "text-emerald-600 text-base" : "text-emerald-600"
+                : isStock ? "text-purple-600 text-base" : "text-purple-600"
             }`}>
               {item.stock_status === "out_of_stock" ? "품절" : item.stock_status}
             </span>
@@ -423,15 +423,15 @@ function ResultCard({ item, intents = [] }: { item: SearchResult; intents?: stri
       {item.ingredients && (
         <div className={`mt-3 border-t pt-2 ${
           isIng
-            ? "border-emerald-200 bg-emerald-50/80 rounded-lg px-3 pb-3 -mx-1"
+            ? "border-purple-200 bg-purple-50/80 rounded-lg px-3 pb-3 -mx-1"
             : "border-slate-100"
         }`}>
           {isIng && (
-            <p className="text-xs font-bold text-emerald-700 mb-1.5">🌿 원재료 성분</p>
+            <p className="text-xs font-bold text-purple-700 mb-1.5">🌿 원재료 성분</p>
           )}
           <p className={`leading-relaxed ${
             isIng
-              ? "text-sm text-emerald-900 font-medium line-clamp-4"
+              ? "text-sm text-purple-900 font-medium line-clamp-4"
               : "text-xs text-slate-500 line-clamp-2"
           }`}>
             {item.ingredients}
@@ -565,18 +565,18 @@ export function ProductChatbot() {
   };
 
   return (
-    <div className="flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden" style={{ height: "min(580px, calc(100svh - 160px))" }}>
+    <div className="flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden" style={{ height: "min(580px, calc(100dvh - 160px))" }}>
       {/* 헤더 */}
-      <div className="flex items-center gap-3 px-4 md:px-5 py-3 md:py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white shrink-0">
-        <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm shrink-0">
+      <div className="flex items-center gap-3 px-4 md:px-5 py-3 md:py-4 border-b border-slate-100 bg-gradient-to-r from-purple-50 to-white shrink-0">
+        <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-purple-600 flex items-center justify-center shadow-sm shrink-0">
           <Sparkles className="w-4 h-4 text-white" />
         </div>
         <div>
           <p className="font-bold text-slate-900 text-base">제품 AI 검색</p>
           <p className="text-xs text-slate-400">DB 실시간 연동</p>
         </div>
-        <span className="ml-auto flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+        <span className="ml-auto flex items-center gap-1.5 text-xs text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-100">
+          <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
           온라인
         </span>
       </div>
@@ -588,7 +588,7 @@ export function ProductChatbot() {
             {/* 아바타 */}
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                msg.role === "bot" ? "bg-emerald-100 text-emerald-700" : "bg-slate-700 text-white"
+                msg.role === "bot" ? "bg-purple-100 text-purple-700" : "bg-slate-700 text-white"
               }`}
             >
               {msg.role === "bot" ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
@@ -600,7 +600,7 @@ export function ProductChatbot() {
                 className={`px-4 py-3 rounded-2xl text-sm md:text-[15px] whitespace-pre-line leading-relaxed ${
                   msg.role === "bot"
                     ? "bg-white border border-slate-200 text-slate-800 rounded-tl-sm"
-                    : "bg-emerald-600 text-white rounded-tr-sm"
+                    : "bg-purple-600 text-white rounded-tr-sm"
                 }`}
               >
                 {msg.text}
@@ -625,14 +625,14 @@ export function ProductChatbot() {
         {/* 로딩 */}
         {loading && (
           <div className="flex gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center">
-              <Bot className="w-3.5 h-3.5 text-emerald-700" />
+            <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center">
+              <Bot className="w-3.5 h-3.5 text-purple-700" />
             </div>
             <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3">
               <div className="flex gap-1 items-center h-4">
-                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
               </div>
             </div>
           </div>
@@ -647,7 +647,7 @@ export function ProductChatbot() {
             <button
               key={s}
               onClick={() => send(s)}
-              className="shrink-0 text-sm px-3.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full hover:bg-emerald-100 active:bg-emerald-200 transition-colors flex items-center gap-1.5"
+              className="shrink-0 text-sm px-3.5 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-full hover:bg-purple-100 active:bg-purple-200 transition-colors flex items-center gap-1.5"
             >
               <Search className="w-3.5 h-3.5" />
               {s}
@@ -664,14 +664,14 @@ export function ProductChatbot() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
           placeholder="제품명, 성분, 가격 등 검색..."
-          className="flex-1 bg-slate-50 border-slate-200 focus:border-emerald-400 text-sm md:text-base rounded-xl h-11"
+          className="flex-1 bg-slate-50 border-slate-200 focus:border-purple-400 text-base rounded-xl h-11"
           disabled={loading}
         />
         <Button
           onClick={() => send()}
           disabled={!input.trim() || loading}
           size="icon"
-          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shrink-0 w-11 h-11"
+          className="bg-purple-600 hover:bg-purple-700 text-white rounded-xl shrink-0 w-11 h-11"
         >
           <Send className="w-5 h-5" />
         </Button>
