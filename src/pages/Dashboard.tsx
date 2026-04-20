@@ -38,7 +38,7 @@ export default function Dashboard() {
           variant="primary"
         />
         <StatCard
-          title="원자재"
+          title="원료"
           value={rawCount !== null ? String(rawCount) : "…"}
           description="등록된 원료 수"
           icon={Boxes}
