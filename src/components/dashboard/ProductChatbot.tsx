@@ -218,7 +218,7 @@ async function getBotResponse(text: string): Promise<{ text: string; results: Se
 
   if (results.length === 0) {
     return {
-      text: "'" + searchKeyword + "' 에 해당하는 제품을 찾지 못했습니다.\n\n💡 검색 팁: 제품명 일부만 입력해보세요\n예) '녹용', '장어', '키즈'",
+      text: "'" + searchKeyword + "' 에 해당하는 내용을 DB에서 찾지 못했습니다. 해당 데이터가 없거나 추가 입력이 필요한 상태입니다.\n\n💡 검색 팁: 제품명 일부만 입력해보세요\n예) '녹용', '장어', '키즈'",
       results: [],
     };
   }
