@@ -13,6 +13,8 @@ interface Message {
   results?: SearchResult[];
   intents?: string[];  // 사용자 의도 (가격/규격/성분 등)
   rawQuery?: string; // 원본 쿼리
+  aiResponse?: string; // RAG 기반 AI 생성 텍스트
+  isAiLoading?: boolean; // AI 답변 로딩 상태
   timestamp: Date;
 }
 
@@ -256,6 +258,67 @@ async function getBotResponse(text: string): Promise<{ text: string; results: Se
     results,
     intents,
   };
+}
+
+// ─── AI 수식 계산 및 추론 응답 생성 (RAG) ──────────────────────
+async function callAIInference(query: string, results: SearchResult[]): Promise<string> {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    return "> ⚠️ 진단 및 추론 기능이 비활성화 되었습니다. (`.env.local` 파일에 `VITE_OPENAI_API_KEY` 또는 `VITE_GEMINI_API_KEY` 설정 필요)";
+  }
+  
+  const isOpenAI = import.meta.env.VITE_OPENAI_API_KEY !== undefined;
+  
+  const contextData = results.slice(0, 5).map(r => `
+제품명: ${r.product_name}
+규격: ${r.spec || '없음'}
+원재료/성분: ${r.ingredients || '없음'}
+도매가: ${(r as any).wholesale_b || '없음'}
+소비자가: ${r.retail_price || '없음'}
+`).join("\n---");
+
+  const prompt = `당신은 바이오닷 운영팀의 스마트 업무 보조 AI입니다.
+사용자의 질문에 대해 제공된 제품 데이터를 바탕으로 답변을 도출하세요.
+
+[사용자 질문]
+${query}
+
+[검색된 제품 데이터 (Context)]
+${contextData}
+
+조건:
+1. 데이터에 없는 내용은 추측하지 말고 모른다고 할 것.
+2. 배합비, 1포당 용량, 단가 등 산수 계산을 요구하면 명확한 수식을 보여줄 것.
+3. 보기 편한 마크다운을 사용할 것. 요점만 간결하게 설명할 것.`;
+
+  try {
+    if (isOpenAI) {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: "gpt-4o-mini", // fallback 가능
+          messages: [{ role: "system", content: "You are a helpful assistant." }, { role: "user", content: prompt }],
+          temperature: 0.1
+        })
+      });
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content || "AI 응답을 생성하지 못했습니다.";
+    } else {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+      const data = await res.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "AI 응답을 생성하지 못했습니다.";
+    }
+  } catch (error) {
+    console.error("AI Inference Error:", error);
+    return "> API 호출 중 오류가 발생했습니다. 키 유효성을 확인하세요.";
+  }
 }
 
 // ─── 물류 정보 패널 ──────────────────────────────────────────────
@@ -566,16 +629,28 @@ export function ProductChatbot() {
 
     try {
       const { text: botText, results, intents } = await getBotResponse(query);
+      const botMsgId = (Date.now() + 1).toString();
       const botMsg: Message = {
-        id: (Date.now() + 1).toString(),
+        id: botMsgId,
         role: "bot",
         text: botText,
         results,
         intents,
         rawQuery: query,
+        isAiLoading: results.length > 0 && /계산|얼마|몇|기준|함량|포당/.test(query),
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMsg]);
+
+      // 추론 대상일 때만 LLM 페치
+      if (botMsg.isAiLoading) {
+        callAIInference(query, results).then((aiText) => {
+          setMessages((prev) => 
+            prev.map(m => m.id === botMsgId ? { ...m, aiResponse: aiText, isAiLoading: false } : m)
+          );
+        });
+      }
+
     } catch (error) {
       console.error("Chatbot query error:", error);
       setMessages((prev) => [
@@ -636,6 +711,21 @@ export function ProductChatbot() {
                   {msg.results.map((r, i) => (
                     <ResultCard key={i} item={r} intents={msg.intents} rawQuery={msg.rawQuery} />
                   ))}
+                </div>
+              )}
+
+              {/* AI 추론 & 계산 영역 */}
+              {msg.isAiLoading && (
+                <div className="text-sm text-purple-600 bg-purple-50/50 rounded-lg px-4 py-3 flex items-center gap-2 border border-purple-100 animate-pulse mt-2">
+                  <Sparkles className="w-4 h-4" /> AI가 데이터를 분석하여 수식을 계산 중입니다...
+                </div>
+              )}
+              {msg.aiResponse && (
+                <div className="text-sm bg-purple-50/30 text-slate-800 rounded-lg px-5 py-4 border border-purple-100 mt-2 shadow-sm whitespace-pre-wrap leading-relaxed prose prose-sm prose-purple max-w-none">
+                  <div className="flex items-center gap-2 font-bold text-purple-700 mb-2">
+                    <Sparkles className="w-4 h-4" /> AI 추론 결과
+                  </div>
+                  {msg.aiResponse}
                 </div>
               )}
 
