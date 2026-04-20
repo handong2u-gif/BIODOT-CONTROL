@@ -140,42 +140,16 @@ async function fetchLogistics(productIds: number[]): Promise<Map<number, Logisti
 
 // ─── Supabase 검색 ──────────────────────────────────────────────
 async function searchDB(keyword: string, tokens: string[], intents: string[]) {
-  // 검색어 우선순위: 전체 키워드 → 개별 토큰
-  const searchTerms: string[] = [];
-  if (keyword && keyword.length >= 2) searchTerms.push(keyword);
-  tokens.forEach(t => {
-    if (t.length >= 2 && t !== keyword) searchTerms.push(t);
-  });
-  if (searchTerms.length === 0 && keyword.length > 0) searchTerms.push(keyword);
+  const validTokens = tokens.filter(t => t.length >= 2);
+  const searchTerms = validTokens.length > 0 ? validTokens : [keyword];
   if (searchTerms.length === 0) return [];
 
   const seenIds = new Set<string>();
   const allFg: SearchResult[] = [];
   const allRm: SearchResult[] = [];
 
-  for (const term of searchTerms) {
-    // 완제품 검색 (이름)
-    const { data: fg } = await (supabase as any)
-      .from("finished_goods")
-      .select("id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients")
-      .ilike("product_name", `%${term}%`)
-      .limit(10);
-
-    // 완제품 검색 (성분)
-    const { data: fgIng } = await (supabase as any)
-      .from("finished_goods")
-      .select("id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients")
-      .ilike("ingredients", `%${term}%`)
-      .limit(5);
-
-    // 원료 검색
-    const { data: rm } = await (supabase as any)
-      .from("raw_materials")
-      .select("id, product_name, spec, origin_country, wholesale_a")
-      .ilike("product_name", `%${term}%`)
-      .limit(5);
-
-    for (const r of [...(fg || []), ...(fgIng || [])]) {
+  const processResults = (fg: any[], rm: any[]) => {
+    for (const r of fg || []) {
       if (!seenIds.has(`fg-${r.id}`)) {
         seenIds.add(`fg-${r.id}`);
         allFg.push({ ...r, table: "finished_goods", logistics: null });
@@ -187,7 +161,48 @@ async function searchDB(keyword: string, tokens: string[], intents: string[]) {
         allRm.push({ ...r, table: "raw_materials", logistics: null });
       }
     }
-    if (allFg.length + allRm.length >= 8) break;
+  };
+
+  const fgSelect = "id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients";
+  const rmSelect = "id, product_name, spec, origin_country, wholesale_a";
+
+  // 1. 교집합(AND) 검색: 가장 길이가 긴 토큰으로 1차 조회 후, JS에서 모든 토큰 포함 여부 필터링
+  const longestToken = [...searchTerms].sort((a, b) => b.length - a.length)[0];
+
+  const [{ data: fgBase }, { data: rmBase }] = await Promise.all([
+    (supabase as any).from("finished_goods").select(fgSelect).ilike("product_name", `%${longestToken}%`).limit(50),
+    (supabase as any).from("raw_materials").select(rmSelect).ilike("product_name", `%${longestToken}%`).limit(30)
+  ]);
+
+  const fgAndMatch = (fgBase || []).filter((r: any) => 
+    searchTerms.every(t => r.product_name && r.product_name.includes(t))
+  );
+  const rmAndMatch = (rmBase || []).filter((r: any) => 
+    searchTerms.every(t => r.product_name && r.product_name.includes(t))
+  );
+
+  processResults(fgAndMatch, rmAndMatch);
+
+  // 2. AND 결과가 0건이면 기존처럼 개별 토큰(OR) 검색으로 완화
+  if (allFg.length + allRm.length === 0) {
+    for (const term of searchTerms) {
+      if (allFg.length + allRm.length >= 8) break;
+
+      const { data: fgFallback } = await (supabase as any)
+        .from("finished_goods").select(fgSelect).ilike("product_name", `%${term}%`).limit(5);
+      
+      const { data: rmFallback } = await (supabase as any)
+        .from("raw_materials").select(rmSelect).ilike("product_name", `%${term}%`).limit(3);
+
+      processResults(fgFallback || [], rmFallback || []);
+    }
+  }
+
+  // 3. 그럼에도 불구하고 0건이면 성분(ingredients) 검색 폴백
+  if (allFg.length === 0) {
+    const { data: fgIng } = await (supabase as any)
+      .from("finished_goods").select(fgSelect).ilike("ingredients", `%${longestToken}%`).limit(5);
+    processResults(fgIng || [], []);
   }
 
   // 규격·물류 인텐트가 포함된 경우 → 완제품에 대해 물류 정보 추가 조회
