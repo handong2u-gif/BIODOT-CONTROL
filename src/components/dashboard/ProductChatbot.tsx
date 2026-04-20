@@ -317,6 +317,11 @@ ${contextData}
         })
       });
       const data = await res.json();
+      
+      if (data.error) {
+        return `> ⚠️ **Gemini API 예외 발생**\n> \`\`\`json\n> ${JSON.stringify(data.error, null, 2)}\n> \`\`\``;
+      }
+      
       return data.candidates?.[0]?.content?.parts?.[0]?.text || "AI 응답을 생성하지 못했습니다.";
     }
   } catch (error) {
