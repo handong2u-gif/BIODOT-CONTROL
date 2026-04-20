@@ -309,7 +309,8 @@ ${contextData}
       const data = await res.json();
       return data.choices?.[0]?.message?.content || "AI 응답을 생성하지 못했습니다.";
     } else {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      // gemini-1.5-flash-latest 또는 gemini-1.5-pro-latest 사용
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
