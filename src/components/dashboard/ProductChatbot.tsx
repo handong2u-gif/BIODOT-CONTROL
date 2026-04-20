@@ -78,7 +78,11 @@ const STOP_WORDS = [
 
 // ─── 질문 분석 (멀티 인텐트) ─────────────────────────────────────
 function parseQuery(text: string): { keyword: string; tokens: string[]; intents: string[] } {
-  const t = text;
+  // 별명(Synonyms) 전처리
+  let t = text;
+  t = t.replace(/러알용/g, "러시아 알타이 녹용");
+  t = t.replace(/뉴아[녹록]/g, "뉴질랜드 아오테아로아 녹용");
+  t = t.replace(/키녹칼/g, "한동 키즈튼튼 녹용칼슘스틱");
 
   // 멀티 인텐트 감지
   const intents: string[] = [];
