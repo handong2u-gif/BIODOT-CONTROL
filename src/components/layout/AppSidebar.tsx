@@ -126,8 +126,8 @@ export function AppSidebar() {
               <span className="text-sidebar-primary-foreground font-bold text-lg">B</span>
             </div>
             <div>
-              <h1 className="text-sidebar-foreground font-semibold text-base tracking-tight">바이오닷</h1>
-              <p className="text-sidebar-muted text-xs">내부 운영 시스템</p>
+              <h1 className="text-sidebar-foreground font-semibold text-base tracking-tight">Biodotworks</h1>
+              <p className="text-sidebar-muted text-xs font-medium tracking-wide">Desk</p>
             </div>
           </div>
           <button
@@ -149,8 +149,8 @@ export function AppSidebar() {
               <span className="text-sidebar-primary-foreground font-bold text-lg">B</span>
             </div>
             <div className="animate-fade-in">
-              <h1 className="text-sidebar-foreground font-semibold text-lg tracking-tight">바이오닷</h1>
-              <p className="text-sidebar-muted text-xs">내부 운영 시스템</p>
+              <h1 className="text-sidebar-foreground font-semibold text-lg tracking-tight">Biodotworks</h1>
+              <p className="text-sidebar-muted text-xs font-medium tracking-wide">Desk</p>
             </div>
           </div>
         </div>
