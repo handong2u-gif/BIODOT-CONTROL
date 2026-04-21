@@ -11,10 +11,10 @@ interface Message {
   role: "user" | "bot";
   text: string;
   results?: SearchResult[];
-  intents?: string[];
-  rawQuery?: string;
-  aiResponse?: string;
-  isAiLoading?: boolean;
+  intents?: string[];  // 사용자 의도 (가격/규격/성분 등)
+  rawQuery?: string; // 원본 쿼리
+  aiResponse?: string; // RAG 기반 AI 생성 텍스트
+  isAiLoading?: boolean; // AI 답변 로딩 상태
   timestamp: Date;
 }
 
@@ -40,33 +40,304 @@ interface SearchResult {
   product_name: string;
   spec?: string | null;
   origin_country?: string | null;
-  wholesale_a?: number | null;
-  wholesale_b?: number | null;
+  wholesale_a?: number | null;   // 위탁가
+  wholesale_b?: number | null;   // 일반 도매가 (주력)
   retail_price?: number | null;
   online_price?: number | null;
   stock_status?: string | null;
-  tags?: string[] | string | null;
+  tags?: string[] | null;
   ingredients?: string | null;
   table: "finished_goods" | "raw_materials";
   logistics?: LogisticsInfo | null;
 }
 
+// ─── 금액 포맷 ────────────────────────────────────────────────────
 const fmt = (n: number | null | undefined) => {
   if (!n) return "-";
   return new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW" }).format(n);
 };
 
-// ─── Edge Function 호출 ───────────────────────────────────────────
-async function callProductChat(payload: {
-  query: string;
-  mode?: "search" | "infer";
-  results?: SearchResult[];
-}): Promise<any> {
-  const { data, error } = await supabase.functions.invoke("product-chat", {
-    body: payload,
+// ─── 정지어 사전 ─────────────────────────────────────────────────
+// 의도 키워드 (검색어에서 제거되어야 할 기능어)
+const INTENT_WORDS = [
+  "가격", "단가", "원가", "공급가", "도매가", "도매", "소비자가", "소비자", "판매가",
+  "온라인가", "위탁가", "공급단가",
+  "규격", "사이즈", "크기", "치수", "용량", "소비기한", "유통기한", "기한", "수명",
+  "성분", "원재료", "원재료명", "함량", "원료", "배합비",
+  "재고", "입고", "품절", "상태",
+  "물류", "바코드", "카톤", "입수", "박스",
+  "제품", "정보",
+];
+// 불필요 단어 (조사/어미/일반 동사/질문형태어)
+const STOP_WORDS = [
+  "알려줘", "알려주세요", "가르쳐줘", "가르쳐주세요", "뭐야", "어때", "어떻게",
+  "검색", "찾아줘", "찾아주세요", "보여줘", "보여주세요", "해줘", "해주라",
+  "이랑", "하고", "이고", "이랑", "랑", "과", "와",
+  "어디야", "있어", "인가요", "입니까", "인지", "어느정도", "얼마야", "얼마인가요", 
+  "언제야", "언제", "얼마", "계산해줘", "계산", "들어가", "들어있", "들었", "들어가있어",
+  "몇프로", "몇퍼센트", "퍼센트", "몇", "어떤", "얼마나"
+];
+
+// ─── 질문 분석 (멀티 인텐트) ─────────────────────────────────────
+function parseQuery(text: string): { keyword: string; tokens: string[]; intents: string[] } {
+  // 별명(Synonyms) 전처리
+  let t = text;
+  t = t.replace(/러알용/g, "러시아 알타이 녹용");
+  t = t.replace(/뉴아[녹록]/g, "뉴질랜드 아오테아로아 녹용");
+  t = t.replace(/키녹칼/g, "한동 키즈튼튼 녹용칼슘스틱");
+
+  // 멀티 인텐트 감지
+  const intents: string[] = [];
+  if (/가격|단가|원가|공급가|도매|소비자가|판매가|위탁가|온라인가/.test(t)) intents.push("price");
+  if (/규격|사이즈|크기|치수|mm|cm|ml|g(?!\w)|소비기한|유통기한|기한/.test(t)) intents.push("spec");
+  if (/성분|원재료|함량|배합비/.test(t)) intents.push("ingredients");
+  if (/재고|입고|품절|상태/.test(t)) intents.push("stock");
+  if (/물류|바코드|카톤|입수|박스/.test(t)) intents.push("logistics");
+  if (intents.length === 0) intents.push("general");
+
+  // 키워드 추출: 정지어 & 의도어 제거 (긴 것부터 처리하여 오작동 방지)
+  let cleaned = t;
+  const allRemovals = [...INTENT_WORDS, ...STOP_WORDS].sort((a, b) => b.length - a.length);
+  allRemovals.forEach((w) => {
+    cleaned = cleaned.replace(new RegExp(w, "g"), " ");
   });
-  if (error) throw error;
-  return data;
+  // 쉼표, 물음표 등 특수문자 공백 치환
+  cleaned = cleaned.replace(/[?!,.]/g, " ");
+  
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+
+  // 단어 토큰 분리
+  let rawTokens = cleaned.split(" ");
+
+  // 각 토큰 꼬리에 붙은 조사 격(은,는,이,가,을,를,의,에) 안전 제거 처리
+  rawTokens = rawTokens.map(t => t.replace(/[은는이가을를의에]$/, ""));
+
+  // 토큰화 (2글자 이상만 의미있는 키워드로)
+  const tokens = rawTokens.filter((t) => t.length >= 2);
+  const keyword = tokens.join(" ");
+
+  return { keyword, tokens, intents };
+}
+
+// ─── 물류 정보 조회 ──────────────────────────────────────────────
+async function fetchLogistics(productIds: number[]): Promise<Map<number, LogisticsInfo>> {
+  if (productIds.length === 0) return new Map();
+
+  const { data } = await (supabase as any)
+    .from("product_logistics_specs")
+    .select(`
+      product_id,
+      logistics_barcode,
+      storage_condition,
+      shelf_life_note,
+      packaging_type,
+      product_width_mm,
+      product_depth_mm,
+      product_height_mm,
+      product_weight_g,
+      carton_width_mm,
+      carton_depth_mm,
+      carton_height_mm,
+      carton_weight_kg,
+      units_per_carton,
+      cartons_per_pallet
+    `)
+    .in("product_id", productIds);
+
+  const map = new Map<number, LogisticsInfo>();
+  if (data) {
+    data.forEach((row: any) => {
+      map.set(row.product_id, row);
+    });
+  }
+  return map;
+}
+
+// ─── Supabase 검색 ──────────────────────────────────────────────
+async function searchDB(keyword: string, tokens: string[], intents: string[]) {
+  const validTokens = tokens.filter(t => t.length >= 2);
+  const searchTerms = validTokens.length > 0 ? validTokens : [keyword];
+  if (searchTerms.length === 0) return [];
+
+  const seenIds = new Set<string>();
+  const allFg: SearchResult[] = [];
+  const allRm: SearchResult[] = [];
+
+  const processResults = (fg: any[], rm: any[]) => {
+    for (const r of fg || []) {
+      if (!seenIds.has(`fg-${r.id}`)) {
+        seenIds.add(`fg-${r.id}`);
+        allFg.push({ ...r, table: "finished_goods", logistics: null });
+      }
+    }
+    for (const r of rm || []) {
+      if (!seenIds.has(`rm-${r.id}`)) {
+        seenIds.add(`rm-${r.id}`);
+        allRm.push({ ...r, table: "raw_materials", logistics: null });
+      }
+    }
+  };
+
+  const fgSelect = "id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients";
+  const rmSelect = "id, product_name, spec, origin_country, wholesale_a";
+
+  // 1. 교집합(AND) 검색: 가장 길이가 긴 토큰으로 1차 조회 후, JS에서 모든 토큰 포함 여부 필터링
+  const longestToken = [...searchTerms].sort((a, b) => b.length - a.length)[0];
+
+  const [{ data: fgBase }, { data: rmBase }] = await Promise.all([
+    (supabase as any).from("finished_goods").select(fgSelect).ilike("product_name", `%${longestToken}%`).limit(50),
+    (supabase as any).from("raw_materials").select(rmSelect).ilike("product_name", `%${longestToken}%`).limit(30)
+  ]);
+
+  const fgAndMatch = (fgBase || []).filter((r: any) => 
+    searchTerms.every(t => r.product_name && r.product_name.includes(t))
+  );
+  const rmAndMatch = (rmBase || []).filter((r: any) => 
+    searchTerms.every(t => r.product_name && r.product_name.includes(t))
+  );
+
+  processResults(fgAndMatch, rmAndMatch);
+
+  // 2. AND 결과가 0건이면 기존처럼 개별 토큰(OR) 검색으로 완화
+  if (allFg.length + allRm.length === 0) {
+    for (const term of searchTerms) {
+      if (allFg.length + allRm.length >= 8) break;
+
+      const { data: fgFallback } = await (supabase as any)
+        .from("finished_goods").select(fgSelect).ilike("product_name", `%${term}%`).limit(5);
+      
+      const { data: rmFallback } = await (supabase as any)
+        .from("raw_materials").select(rmSelect).ilike("product_name", `%${term}%`).limit(3);
+
+      processResults(fgFallback || [], rmFallback || []);
+    }
+  }
+
+  // 3. 그럼에도 불구하고 0건이면 성분(ingredients) 검색 폴백
+  if (allFg.length === 0) {
+    const { data: fgIng } = await (supabase as any)
+      .from("finished_goods").select(fgSelect).ilike("ingredients", `%${longestToken}%`).limit(5);
+    processResults(fgIng || [], []);
+  }
+
+  // 규격·물류 인텐트가 포함된 경우 → 완제품에 대해 물류 정보 추가 조회
+  const needsLogistics = intents.includes("spec") || intents.includes("logistics");
+  if (needsLogistics && allFg.length > 0) {
+    const fgIds = allFg.map(r => r.id as number);
+    const logisticsMap = await fetchLogistics(fgIds);
+    allFg.forEach(r => {
+      r.logistics = logisticsMap.get(r.id as number) ?? null;
+    });
+  }
+
+  return [...allFg, ...allRm];
+}
+
+// ─── 봇 응답 생성 ─────────────────────────────────────────────────
+async function getBotResponse(text: string): Promise<{ text: string; results: SearchResult[] }> {
+  const { keyword, tokens, intents } = parseQuery(text);
+
+  if (tokens.length === 0 && keyword.length < 1) {
+    return {
+      text: "제품명이나 성분명을 포함해서 질문해 주세요!\n예) '뉴질랜드 녹용 가격', '장어진액 규격', '흑염소 성분'",
+      results: [],
+    };
+  }
+
+  const searchKeyword = keyword || tokens[0] || text.trim();
+  const results = await searchDB(searchKeyword, tokens, intents);
+
+  if (results.length === 0) {
+    return {
+      text: "'" + searchKeyword + "' 에 해당하는 내용을 DB에서 찾지 못했습니다. 해당 데이터가 없거나 추가 입력이 필요한 상태입니다.\n\n💡 검색 팁: 제품명 일부만 입력해보세요\n예) '녹용', '장어', '키즈'",
+      results: [],
+    };
+  }
+
+  // 멀티 인텐트 응답 메시지 생성
+  const intentLabels: Record<string, string> = {
+    price: "💰 가격 (위탁가·소비자가·온라인가 포함)",
+    spec: "📐 제품 규격 및 치수",
+    ingredients: "🧪 원재료 성분",
+    stock: "📦 재고 상태",
+    logistics: "🚚 물류 정보 (바코드·카톤·치수)",
+    general: "🔍 전체 정보",
+  };
+  const intentText = intents.map((i) => intentLabels[i]).join("\n");
+  const responseLabel = "'" + searchKeyword + "'";
+
+  return {
+    text: `${responseLabel} 검색 결과 ${results.length}건\n\n${intentText}`,
+    results,
+    intents,
+  };
+}
+
+// ─── AI 수식 계산 및 추론 응답 생성 (RAG) ──────────────────────
+async function callAIInference(query: string, results: SearchResult[]): Promise<string> {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    return "> ⚠️ 진단 및 추론 기능이 비활성화 되었습니다. (`.env.local` 파일에 `VITE_OPENAI_API_KEY` 또는 `VITE_GEMINI_API_KEY` 설정 필요)";
+  }
+  
+  const isOpenAI = import.meta.env.VITE_OPENAI_API_KEY !== undefined;
+  
+  const contextData = results.slice(0, 5).map(r => `
+제품명: ${r.product_name}
+규격: ${r.spec || '없음'}
+원재료/성분: ${r.ingredients || '없음'}
+도매가: ${(r as any).wholesale_b || '없음'}
+소비자가: ${r.retail_price || '없음'}
+`).join("\n---");
+
+  const prompt = `당신은 바이오닷 운영팀의 스마트 업무 보조 AI입니다.
+사용자의 질문에 대해 제공된 제품 데이터를 바탕으로 답변을 도출하세요.
+
+[사용자 질문]
+${query}
+
+[검색된 제품 데이터 (Context)]
+${contextData}
+
+조건:
+1. 데이터에 없는 내용은 추측하지 말고 모른다고 할 것.
+2. 배합비, 1포당 용량, 단가 등 산수 계산을 요구하면 명확한 수식을 보여줄 것.
+3. 보기 편한 마크다운을 사용할 것. 요점만 간결하게 설명할 것.`;
+
+  try {
+    if (isOpenAI) {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: "gpt-4o-mini", // fallback 가능
+          messages: [{ role: "system", content: "You are a helpful assistant." }, { role: "user", content: prompt }],
+          temperature: 0.1
+        })
+      });
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content || "AI 응답을 생성하지 못했습니다.";
+    } else {
+      // 2026 API 대응: gemini-flash-latest 사용
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+      const data = await res.json();
+      
+      if (data.error) {
+        return `> ⚠️ **Gemini API 예외 발생**\n> \`\`\`json\n> ${JSON.stringify(data.error, null, 2)}\n> \`\`\``;
+      }
+      
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "AI 응답을 생성하지 못했습니다.";
+    }
+  } catch (error) {
+    console.error("AI Inference Error:", error);
+    return "> API 호출 중 오류가 발생했습니다. 키 유효성을 확인하세요.";
+  }
 }
 
 // ─── 물류 정보 패널 ──────────────────────────────────────────────
@@ -136,10 +407,10 @@ function LogisticsPanel({ lg, highlighted }: { lg: LogisticsInfo; highlighted?: 
 function ResultCard({ item, intents = [], rawQuery = "" }: { item: SearchResult; intents?: string[]; rawQuery?: string }) {
   const isFinished = item.table === "finished_goods";
   const hi = (intent: string) => intents.includes(intent);
-  const isPrice = hi("price");
-  const isIng = hi("ingredients");
-  const isSpec = hi("spec") || hi("logistics");
-  const isStock = hi("stock");
+  const isPrice    = hi("price");
+  const isIng      = hi("ingredients");
+  const isSpec     = hi("spec") || hi("logistics");
+  const isStock    = hi("stock");
 
   const q = rawQuery || "";
   const isGeneralPrice = isPrice && !/도매|공급|위탁|소비자|판매가|온라인/.test(q);
@@ -148,18 +419,26 @@ function ResultCard({ item, intents = [], rawQuery = "" }: { item: SearchResult;
   const askRetail = isGeneralPrice || /소비자|판매가/.test(q);
   const askOnline = isGeneralPrice || /온라인/.test(q);
 
+  // tags 데이터 타입 변환 방어 처리 (렌더링 에러 방지)
   let parsedTags: string[] = [];
   if (Array.isArray(item.tags)) {
     parsedTags = item.tags;
   } else if (typeof item.tags === "string") {
-    parsedTags = (item.tags as string).replace(/^{|}$|\[|\]|"/g, '').split(",").map(t => t.trim()).filter(Boolean);
+    parsedTags = item.tags.replace(/^{|}$|\[|\]|"/g, '').split(",").map(t => t.trim()).filter(Boolean);
   }
+
+  // 강조 행 래퍼 스타일
+  const hlRow = (active: boolean) =>
+    active
+      ? "rounded-lg bg-amber-50 border border-amber-200 px-2 py-1.5 col-span-2 flex flex-wrap gap-x-4 gap-y-1"
+      : "";
 
   return (
     <div
       className="bg-white border border-slate-200 rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all cursor-pointer group"
       onClick={() => isFinished && (window.location.href = `/products/${item.id}`)}
     >
+      {/* 제품명 + 뱃지 */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
           {isFinished ? (
@@ -179,6 +458,7 @@ function ResultCard({ item, intents = [], rawQuery = "" }: { item: SearchResult;
         </Badge>
       </div>
 
+      {/* 데이터 그리드 */}
       <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
         {item.spec && (
           <div className={isSpec && !item.logistics ? "rounded-lg bg-blue-50 border border-blue-200 px-2 py-1.5" : ""}>
@@ -195,11 +475,12 @@ function ResultCard({ item, intents = [], rawQuery = "" }: { item: SearchResult;
           </div>
         )}
 
-        {isFinished && (item.wholesale_b || askWholesaleB) ? (
+        {/* 가격 필드들: price 인텐트면 분기하여 강조 */}
+        {isFinished && ((item as any).wholesale_b || askWholesaleB) ? (
           <div className={askWholesaleB ? "rounded-lg bg-orange-50 border border-orange-200 px-2 py-1.5" : ""}>
             <span className={askWholesaleB ? "text-orange-800 font-bold text-xs" : "text-slate-400 text-xs"}>도매가  </span>
             <span className={`font-bold ${askWholesaleB ? "text-orange-700 text-lg" : "font-medium text-slate-700"}`}>
-              {item.wholesale_b ? fmt(item.wholesale_b) : <span className="text-sm font-normal text-red-500/80">DB 미입력</span>}
+              {(item as any).wholesale_b ? fmt((item as any).wholesale_b) : <span className="text-sm font-normal text-red-500/80">DB 미입력</span>}
             </span>
           </div>
         ) : null}
@@ -228,6 +509,7 @@ function ResultCard({ item, intents = [], rawQuery = "" }: { item: SearchResult;
           </div>
         ) : null}
 
+        {/* 재고: stock 인텐트면 강조 */}
         {isFinished && item.stock_status && (
           <div className={isStock ? "rounded-lg bg-slate-100 border border-slate-300 px-2 py-1.5" : ""}>
             <span className="text-slate-400 text-xs">재고  </span>
@@ -242,6 +524,7 @@ function ResultCard({ item, intents = [], rawQuery = "" }: { item: SearchResult;
         )}
       </div>
 
+      {/* 성분: ingredients 인텐트면 green 배경 + 큰 글씨 */}
       {item.ingredients && (
         <div className={`mt-3 border-t pt-2 ${
           isIng
@@ -261,6 +544,7 @@ function ResultCard({ item, intents = [], rawQuery = "" }: { item: SearchResult;
         </div>
       )}
 
+      {/* 규격/물류 정보 패널 */}
       {item.logistics && <LogisticsPanel lg={item.logistics} highlighted={isSpec} />}
 
       {parsedTags.length > 0 && (
@@ -274,6 +558,17 @@ function ResultCard({ item, intents = [], rawQuery = "" }: { item: SearchResult;
   );
 }
 
+// ─── 쿼리 로깅 ───────────────────────────────────────────────────
+async function logQuery(query: string) {
+  if (!query) return;
+  try {
+    await (supabase as any).from("chat_queries").insert([{ query_text: query }]);
+  } catch (error) {
+    console.error("logQuery error:", error);
+  }
+}
+
+// ─── 기본 추천 질문 (데이터 부족 시 폴백용) ───────────────────────
 const DEFAULT_SUGGESTIONS = [
   "녹용 가격",
   "장어진액 규격",
@@ -283,6 +578,7 @@ const DEFAULT_SUGGESTIONS = [
   "키즈 제품",
 ];
 
+// DB에서 자주 사용되는 쿼리 TOP 6 가져오기
 async function fetchTopSuggestions(): Promise<string[]> {
   try {
     const { data, error } = await (supabase as any)
@@ -305,15 +601,7 @@ async function fetchTopSuggestions(): Promise<string[]> {
   }
 }
 
-const INTENT_LABELS: Record<string, string> = {
-  price: "💰 가격 (위탁가·소비자가·온라인가 포함)",
-  spec: "📐 제품 규격 및 치수",
-  ingredients: "🧪 원재료 성분",
-  stock: "📦 재고 상태",
-  logistics: "🚚 물류 정보 (바코드·카톤·치수)",
-  general: "🔍 전체 정보",
-};
-
+// ─── 메인 컴포넌트 ────────────────────────────────────────────────
 export function ProductChatbot() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -330,6 +618,7 @@ export function ProductChatbot() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // 자주 사용되는 쿼리 DB에서 가져오기 (3개 이상이면 기본값 교체)
   useEffect(() => {
     fetchTopSuggestions().then((top) => {
       if (top.length >= 3) setSuggestions(top);
@@ -354,22 +643,12 @@ export function ProductChatbot() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
+    // 쿼리 로깅 (화면 블로킹 없이 백그라운드로)
+    logQuery(query).catch(console.error);
+
     try {
-      const data = await callProductChat({ query, mode: "search" });
-      const { keyword, intents = [], results = [], empty } = data || {};
-
-      let botText: string;
-      if (empty) {
-        botText = "제품명이나 성분명을 포함해서 질문해 주세요!\n예) '뉴질랜드 녹용 가격', '장어진액 규격', '흑염소 성분'";
-      } else if (results.length === 0) {
-        botText = "'" + keyword + "' 에 해당하는 내용을 DB에서 찾지 못했습니다.\n\n💡 검색 팁: 제품명 일부만 입력해보세요\n예) '녹용', '장어', '키즈'";
-      } else {
-        const intentText = (intents as string[]).map((i) => INTENT_LABELS[i]).join("\n");
-        botText = `'${keyword}' 검색 결과 ${results.length}건\n\n${intentText}`;
-      }
-
+      const { text: botText, results, intents } = await getBotResponse(query);
       const botMsgId = (Date.now() + 1).toString();
-      const shouldInfer = results.length > 0 && /계산|얼마|몇|기준|함량|포당/.test(query);
       const botMsg: Message = {
         id: botMsgId,
         role: "bot",
@@ -377,33 +656,20 @@ export function ProductChatbot() {
         results,
         intents,
         rawQuery: query,
-        isAiLoading: shouldInfer,
+        isAiLoading: results.length > 0 && /계산|얼마|몇|기준|함량|포당/.test(query),
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMsg]);
 
-      if (shouldInfer) {
-        callProductChat({ query, mode: "infer", results })
-          .then((res) => {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === botMsgId
-                  ? { ...m, aiResponse: res?.aiResponse ?? "AI 응답 없음", isAiLoading: false }
-                  : m
-              )
-            );
-          })
-          .catch((err) => {
-            console.error("AI infer error:", err);
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === botMsgId
-                  ? { ...m, aiResponse: "> AI 호출 중 오류가 발생했습니다.", isAiLoading: false }
-                  : m
-              )
-            );
-          });
+      // 추론 대상일 때만 LLM 페치
+      if (botMsg.isAiLoading) {
+        callAIInference(query, results).then((aiText) => {
+          setMessages((prev) => 
+            prev.map(m => m.id === botMsgId ? { ...m, aiResponse: aiText, isAiLoading: false } : m)
+          );
+        });
       }
+
     } catch (error) {
       console.error("Chatbot query error:", error);
       setMessages((prev) => [
@@ -418,6 +684,7 @@ export function ProductChatbot() {
 
   return (
     <div className="flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden" style={{ height: "min(580px, calc(100dvh - 160px))" }}>
+      {/* 헤더 */}
       <div className="flex items-center gap-3 px-4 md:px-5 py-3 md:py-4 border-b border-slate-100 bg-gradient-to-r from-purple-50 to-white shrink-0">
         <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-purple-600 flex items-center justify-center shadow-sm shrink-0">
           <Sparkles className="w-4 h-4 text-white" />
@@ -432,9 +699,11 @@ export function ProductChatbot() {
         </span>
       </div>
 
+      {/* 메시지 영역 */}
       <div className="flex-1 overflow-y-auto px-3 md:px-4 py-4 space-y-5 bg-slate-50/50">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+            {/* 아바타 */}
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
                 msg.role === "bot" ? "bg-purple-100 text-purple-700" : "bg-slate-700 text-white"
@@ -444,6 +713,7 @@ export function ProductChatbot() {
             </div>
 
             <div className={`flex flex-col gap-2 max-w-[88%] ${msg.role === "user" ? "items-end" : ""}`}>
+              {/* 말풍선 */}
               <div
                 className={`px-4 py-3 rounded-2xl text-sm md:text-[15px] whitespace-pre-line leading-relaxed ${
                   msg.role === "bot"
@@ -454,6 +724,7 @@ export function ProductChatbot() {
                 {msg.text}
               </div>
 
+              {/* 검색 결과 카드 */}
               {msg.results && msg.results.length > 0 && (
                 <div className="space-y-2.5 w-full">
                   {msg.results.map((r, i) => (
@@ -462,6 +733,7 @@ export function ProductChatbot() {
                 </div>
               )}
 
+              {/* AI 추론 & 계산 영역 */}
               {msg.isAiLoading && (
                 <div className="text-sm text-purple-600 bg-purple-50/50 rounded-lg px-4 py-3 flex items-center gap-2 border border-purple-100 animate-pulse mt-2">
                   <Sparkles className="w-4 h-4" /> AI가 데이터를 분석하여 수식을 계산 중입니다...
@@ -483,6 +755,7 @@ export function ProductChatbot() {
           </div>
         ))}
 
+        {/* 로딩 */}
         {loading && (
           <div className="flex gap-2.5">
             <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center">
@@ -500,6 +773,7 @@ export function ProductChatbot() {
         <div ref={bottomRef} />
       </div>
 
+      {/* 추천 질문 (DB 데이터 츰면 자동으로 자주 사용하는 질문으로 교체) */}
       {messages.length <= 1 && (
         <div className="px-3 md:px-4 py-2.5 flex gap-2 overflow-x-auto shrink-0 border-t border-slate-100 bg-white">
           {suggestions.map((s) => (
@@ -515,6 +789,7 @@ export function ProductChatbot() {
         </div>
       )}
 
+      {/* 입력창 */}
       <div className="flex gap-2 px-3 md:px-4 py-3 border-t border-slate-200 bg-white shrink-0">
         <Input
           ref={inputRef}
@@ -529,9 +804,9 @@ export function ProductChatbot() {
           onClick={() => send()}
           disabled={!input.trim() || loading}
           size="icon"
-          className="bg-purple-600 hover:bg-purple-700 text-white rounded-xl h-11 w-11 shrink-0"
+          className="bg-purple-600 hover:bg-purple-700 text-white rounded-xl shrink-0 w-11 h-11"
         >
-          <Send className="w-4 h-4" />
+          <Send className="w-5 h-5" />
         </Button>
       </div>
     </div>
