@@ -1,6 +1,6 @@
 import { StatCard } from "@/components/ui/stat-card";
 import { ProductChatbot } from "@/components/dashboard/ProductChatbot";
-import { Package, Boxes, ImageIcon } from "lucide-react";
+import { Package, Boxes, ImageIcon, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,29 @@ export default function Dashboard() {
   const [rawCount, setRawCount] = useState<number | null>(null);
   const [recentProducts, setRecentProducts] = useState<RecentProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
+
+  type SortColumn = 'product_name' | 'expiry_date' | null;
+  type SortDirection = 'asc' | 'desc';
+  const [sortColumn, setSortColumn] = useState<SortColumn>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedProducts = [...recentProducts].sort((a, b) => {
+    if (!sortColumn) return 0;
+    const aVal = String(a[sortColumn] || "");
+    const bVal = String(b[sortColumn] || "");
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   useEffect(() => {
     (async () => {
@@ -91,12 +114,36 @@ export default function Dashboard() {
                   <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
                     <TableRow>
                       <TableHead className="w-16 text-center text-xs">사진</TableHead>
-                      <TableHead className="text-xs">제품명</TableHead>
-                      <TableHead className="text-xs whitespace-nowrap">소비기한</TableHead>
+                      <TableHead 
+                        className="text-xs cursor-pointer hover:bg-slate-100 select-none group"
+                        onClick={() => handleSort('product_name')}
+                      >
+                        <div className="flex items-center gap-1">
+                          제품명
+                          {sortColumn === 'product_name' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-purple-600" /> : <ArrowDown className="w-3 h-3 text-purple-600" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-xs whitespace-nowrap cursor-pointer hover:bg-slate-100 select-none group"
+                        onClick={() => handleSort('expiry_date')}
+                      >
+                        <div className="flex items-center gap-1">
+                          소비기한
+                          {sortColumn === 'expiry_date' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-purple-600" /> : <ArrowDown className="w-3 h-3 text-purple-600" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          )}
+                        </div>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recentProducts.map((product) => (
+                    {sortedProducts.map((product) => (
                       <TableRow key={product.id} className="hover:bg-slate-50 transition-colors">
                         <TableCell className="p-2 text-center">
                           <div className="w-10 h-10 mx-auto rounded-md bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
