@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Package, MapPin, CheckCircle2, AlertCircle, FileText, Download, Truck, Box, Beaker } from "lucide-react";
+import { ArrowLeft, Package, MapPin, CheckCircle2, AlertCircle, FileText, Download, Truck, Box, Beaker, Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -79,7 +79,52 @@ const ProductDetail = () => {
     const [logistics, setLogistics] = useState<LogisticsSpecs | null>(null);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
     const [showIngredients, setShowIngredients] = useState(false);
+
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        try {
+            if (!event.target.files || event.target.files.length === 0) return;
+            if (!id || !product) return;
+
+            setUploadingImage(true);
+            const file = event.target.files[0];
+            const fileExt = file.name.split('.').pop() || 'jpg';
+            const fileName = `${id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+            // 1. Storage 업로드
+            const { error: uploadError } = await (supabase.storage as any)
+                .from('product-images')
+                .upload(fileName, file);
+
+            if (uploadError) throw uploadError;
+
+            // 2. Public URL 취득
+            const { data: { publicUrl } } = (supabase.storage as any)
+                .from('product-images')
+                .getPublicUrl(fileName);
+
+            // 3. DB 업데이트
+            const { error: dbError } = await (supabase as any)
+                .from('finished_goods')
+                .update({ thumbnail_url: publicUrl })
+                .eq('id', id);
+
+            if (dbError) throw dbError;
+
+            // 4. 로컬 상태 변경
+            setProduct({ ...product, thumbnail_url: publicUrl });
+            toast.success("제품 메인 이미지가 성공적으로 변경되었습니다.");
+
+        } catch (error: any) {
+            console.error('Image upload error:', error);
+            const msg = error.message || "알 수 없는 오류";
+            toast.error(`이미지 업로드 실패: ${msg}\n\n혹시 프로젝트가 일시 중지(Paused) 상태이거나 'product-images' 폼의 권한이 풀렸는지 확인해주세요.`);
+        } finally {
+            setUploadingImage(false);
+            event.target.value = '';
+        }
+    };
 
     const refreshDocuments = async () => {
         if (!id) return;
@@ -284,6 +329,29 @@ const ProductDetail = () => {
                                 <p>등록된 이미지가 없습니다</p>
                             </div>
                         )}
+                        
+                        {/* 이미지 업로드 오버레이 UI */}
+                        <label htmlFor="image-upload" className={`absolute inset-0 bg-black/50 text-white flex flex-col items-center justify-center cursor-pointer transition-opacity ${uploadingImage ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                            {uploadingImage ? (
+                                <>
+                                    <Loader2 className="w-10 h-10 mb-2 animate-spin" />
+                                    <span className="font-medium">업로드 중...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Camera className="w-10 h-10 mb-2" />
+                                    <span className="font-medium drop-shadow-md">이미지 변경하기</span>
+                                </>
+                            )}
+                        </label>
+                        <input 
+                            type="file" 
+                            id="image-upload" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={handleImageUpload} 
+                            disabled={uploadingImage}
+                        />
                         {product.stock_status && (
                             <div className="absolute top-4 left-4">
                                 {product.stock_status === '품절' || product.stock_status === 'out_of_stock' ? (
