@@ -54,12 +54,11 @@ export default function Dashboard() {
       setProductCount(fg ?? 0);
       setRawCount(rm ?? 0);
 
-      // 최근 완제품 목록 가져오기
+      // 전품목 목록 가져오기 (전체 정렬을 위해 limit 해제)
       const { data: productsData } = await (supabase as any)
         .from("finished_goods")
         .select("id, product_name, thumbnail_url, expiry_date")
-        .order("created_at", { ascending: false })
-        .limit(10);
+        .order("product_name", { ascending: true }); // 기본 정렬값: 이름순
       
       setRecentProducts(productsData || []);
       setLoadingProducts(false);
@@ -92,11 +91,14 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 align-top">
-        {/* 완제품 목록 리스트 뷰 */}
-        <Card className="xl:col-span-1 border-slate-200 shadow-sm h-min">
-          <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <Package className="w-5 h-5 text-purple-600" /> 완제품 목록
+        {/* 완제품 전품목 리스트 뷰 */}
+        <Card className="xl:col-span-1 border-slate-200 shadow-sm h-[600px] flex flex-col">
+          <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50 shrink-0">
+            <CardTitle className="text-lg font-bold flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-purple-600" /> 완제품 리스트
+              </div>
+              <span className="text-xs text-slate-400 font-normal">헤더 클릭 시 정렬</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -109,7 +111,7 @@ export default function Dashboard() {
                 등록된 완제품이 없습니다.
               </div>
             ) : (
-              <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+              <div className="overflow-x-auto overflow-y-auto flex-1">
                 <Table>
                   <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
                     <TableRow>
