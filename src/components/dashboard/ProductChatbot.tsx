@@ -73,7 +73,9 @@ const STOP_WORDS = [
   "알려줘", "알려주세요", "가르쳐줘", "가르쳐주세요", "뭐야", "어때", "어떻게",
   "검색", "찾아줘", "찾아주세요", "보여줘", "보여주세요", "해줘", "해주라",
   "이랑", "하고", "이고", "이랑", "랑", "과", "와",
-  "어디야", "있어", "인가요", "입니까", "인지", "어느정도", "얼마야", "얼마인가요", "언제야", "언제", "얼마", "계산해줘", "계산"
+  "어디야", "있어", "인가요", "입니까", "인지", "어느정도", "얼마야", "얼마인가요", 
+  "언제야", "언제", "얼마", "계산해줘", "계산", "들어가", "들어있", "들었", "들어가있어",
+  "몇프로", "몇퍼센트", "퍼센트", "몇", "어떤", "얼마나"
 ];
 
 // ─── 질문 분석 (멀티 인텐트) ─────────────────────────────────────
@@ -99,12 +101,19 @@ function parseQuery(text: string): { keyword: string; tokens: string[]; intents:
   allRemovals.forEach((w) => {
     cleaned = cleaned.replace(new RegExp(w, "g"), " ");
   });
-  // 조사 단독 글자 제거 (한 글자짜리 조사)
-  cleaned = cleaned.replace(/\s[은는이가을를의]{1}\s/g, " ");
+  // 쉼표, 물음표 등 특수문자 공백 치환
+  cleaned = cleaned.replace(/[?!,.]/g, " ");
+  
   cleaned = cleaned.replace(/\s+/g, " ").trim();
 
+  // 단어 토큰 분리
+  let rawTokens = cleaned.split(" ");
+
+  // 각 토큰 꼬리에 붙은 조사 격(은,는,이,가,을,를,의,에) 안전 제거 처리
+  rawTokens = rawTokens.map(t => t.replace(/[은는이가을를의에]$/, ""));
+
   // 토큰화 (2글자 이상만 의미있는 키워드로)
-  const tokens = cleaned.split(" ").filter((t) => t.length >= 2);
+  const tokens = rawTokens.filter((t) => t.length >= 2);
   const keyword = tokens.join(" ");
 
   return { keyword, tokens, intents };
