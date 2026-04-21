@@ -101,17 +101,17 @@ export default function Dashboard() {
               <span className="text-xs text-slate-400 font-normal">헤더 클릭 시 정렬</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
+          <CardContent className="p-0 flex-1 relative overflow-hidden">
             {loadingProducts ? (
-              <div className="p-8 text-center text-sm text-slate-400 animate-pulse">
+              <div className="absolute inset-0 p-8 flex items-center justify-center text-sm text-slate-400 animate-pulse">
                 목록을 불러오는 중입니다...
               </div>
             ) : recentProducts.length === 0 ? (
-              <div className="p-8 text-center text-sm text-slate-500">
+              <div className="absolute inset-0 p-8 flex items-center justify-center text-sm text-slate-500">
                 등록된 완제품이 없습니다.
               </div>
             ) : (
-              <div className="overflow-x-auto overflow-y-auto flex-1 w-full relative">
+              <div className="absolute inset-0 overflow-x-auto overflow-y-auto">
                 <Table>
                   <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
                     <TableRow>
