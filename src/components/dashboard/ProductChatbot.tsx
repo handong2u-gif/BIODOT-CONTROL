@@ -47,6 +47,7 @@ interface SearchResult {
   stock_status?: string | null;
   tags?: string[] | null;
   ingredients?: string | null;
+  expiry_date?: string | null;   // 소비기한 (finished_goods)
   table: "finished_goods" | "raw_materials";
   logistics?: LogisticsInfo | null;
 }
@@ -178,7 +179,7 @@ async function searchDB(keyword: string, tokens: string[], intents: string[]) {
     }
   };
 
-  const fgSelect = "id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients";
+  const fgSelect = "id, product_name, spec, origin_country, wholesale_a, wholesale_b, retail_price, online_price, stock_status, tags, ingredients, expiry_date";
   const rmSelect = "id, product_name, spec, origin_country, wholesale_a";
 
   // 1. 교집합(AND) 검색: 가장 길이가 긴 토큰으로 1차 조회 후, JS에서 모든 토큰 포함 여부 필터링
@@ -519,6 +520,25 @@ function ResultCard({ item, intents = [], rawQuery = "" }: { item: SearchResult;
                 : isStock ? "text-purple-600 text-base" : "text-purple-600"
             }`}>
               {item.stock_status === "out_of_stock" ? "품절" : item.stock_status}
+            </span>
+          </div>
+        )}
+
+        {/* 소비기한: finished_goods.expiry_date */}
+        {isFinished && item.expiry_date && (
+          <div className={isSpec ? "rounded-lg bg-blue-50 border border-blue-200 px-2 py-1.5 col-span-2" : "col-span-2"}>
+            <span className={`text-xs mr-1 ${isSpec ? "text-blue-700 font-bold" : "text-slate-400"}`}>소비기한  </span>
+            <span className={`font-bold ${isSpec ? "text-blue-800 text-base" : "text-slate-700"}`}>
+              {item.expiry_date}
+            </span>
+          </div>
+        )}
+        {/* logistics shelf_life_note 백업 표시 (expiry_date 없을 때) */}
+        {isFinished && !item.expiry_date && item.logistics?.shelf_life_note && (
+          <div className={isSpec ? "rounded-lg bg-blue-50 border border-blue-200 px-2 py-1.5 col-span-2" : "col-span-2"}>
+            <span className={`text-xs mr-1 ${isSpec ? "text-blue-700 font-bold" : "text-slate-400"}`}>소비기한  </span>
+            <span className={`font-bold ${isSpec ? "text-blue-800 text-base" : "text-slate-700"}`}>
+              {item.logistics.shelf_life_note}
             </span>
           </div>
         )}
